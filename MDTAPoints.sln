@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.9.34310.174
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MDTAPoints", "MDTAPoints\MDTAPoints.csproj", "{49CF494C-CB63-4A13-9DD5-2B5F79CD2CBB}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{49CF494C-CB63-4A13-9DD5-2B5F79CD2CBB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{49CF494C-CB63-4A13-9DD5-2B5F79CD2CBB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{49CF494C-CB63-4A13-9DD5-2B5F79CD2CBB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{49CF494C-CB63-4A13-9DD5-2B5F79CD2CBB}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {162B6E11-0FF6-4DD0-A0F4-74C1A1E0F382}
+	EndGlobalSection
+EndGlobal
