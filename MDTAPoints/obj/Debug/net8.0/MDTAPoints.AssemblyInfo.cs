@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("MDTAPoints")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+545fb2cb07db402214af48c0f5d4f3b724b1223a")]
 [assembly: System.Reflection.AssemblyProductAttribute("MDTAPoints")]
 [assembly: System.Reflection.AssemblyTitleAttribute("MDTAPoints")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
