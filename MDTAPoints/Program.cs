@@ -283,12 +283,45 @@ bool isCongress = filePath.Contains("CODebate", StringComparison.OrdinalIgnoreCa
 // Group scores by tournament
 var groupedScores = tournamentScores.GroupBy(ts => ts.Tournament).ToList();
 
+// Track tournaments that don't meet requirements
+var excludedTournaments = new List<string>();
+var smallTournaments = new List<string>();
+
+// First pass: Check which tournaments meet the 4-school minimum
+var validTournaments = new HashSet<string>();
+foreach (var group in groupedScores)
+{
+    var tournamentEntries = group.ToList();
+    var uniqueSchools = tournamentEntries.Select(e => e.School).Distinct().Count();
+    
+    if (uniqueSchools >= 4)
+    {
+        validTournaments.Add(group.Key);
+    }
+    else
+    {
+        excludedTournaments.Add($"{group.Key} (only {uniqueSchools} school{(uniqueSchools == 1 ? "" : "s")})");
+    }
+}
+
+// Remove entries from tournaments that don't meet the 4-school requirement
+tournamentScores = tournamentScores.Where(ts => validTournaments.Contains(ts.Tournament)).ToList();
+
+// Re-group after filtering
+groupedScores = tournamentScores.GroupBy(ts => ts.Tournament).ToList();
+
 // Process each tournament to calculate bonuses
 foreach (var group in groupedScores)
 {
     var tournamentEntries = group.ToList();
     int totalEntries = tournamentEntries.Count;
 
+    // Track if this is a small tournament for notes
+    if (totalEntries <= 11)
+    {
+        smallTournaments.Add($"{group.Key} ({totalEntries} entries)");
+    }
+    
     foreach (var entry in tournamentEntries)
     {
         // Calculate bonus based on event type and placement
@@ -313,24 +346,31 @@ foreach (var group in groupedScores)
         else
         {
             // Standard scoring for Classic, LD, PF, CX
-            if (totalEntries <= 12)
-        {
-            // For tournaments with 12 or fewer entries, award 1 point to top half
-            int topHalfCutoff = (int)Math.Ceiling(totalEntries / 2.0);
-            bonusPoints = entry.Place <= topHalfCutoff ? 1 : 0;
-        }
-        else
-        {
-            // Standard bonus logic for larger tournaments
-            if (entry.Place == 1)
-                bonusPoints = 2;
-            else if (entry.Place >= 2 && entry.Place <= 8)
-                bonusPoints = 1;
+            if (totalEntries <= 11)
+            {
+                // For tournaments with 11 or fewer entries: only half get bonus, no first place points
+                int topHalfCutoff = (int)Math.Ceiling(totalEntries / 2.0);
+                bonusPoints = entry.Place <= topHalfCutoff ? 1 : 0;
+            }
+            else if (totalEntries == 12)
+            {
+                // For tournaments with exactly 12 entries, award 1 point to top half
+                int topHalfCutoff = (int)Math.Ceiling(totalEntries / 2.0);
+                bonusPoints = entry.Place <= topHalfCutoff ? 1 : 0;
+            }
+            else
+            {
+                // Standard bonus logic for larger tournaments (>12 entries)
+                if (entry.Place == 1)
+                    bonusPoints = 2;
+                else if (entry.Place >= 2 && entry.Place <= 8)
+                    bonusPoints = 1;
             }
         }
 
-        // Update the entry's points
+        // Update the entry's points with bonus points and elimination points
         entry.Points += bonusPoints;
+        entry.Points += entry.ElimPoints;
     }
 }
 
@@ -369,10 +409,14 @@ if (isCongress)
 }
 else
 {
-    Console.WriteLine("• Small tournaments (≤12 entries): +1 point for top half");
+    Console.WriteLine("• Small tournaments (≤11 entries): +1 point for top half (no first place bonus)");
+    Console.WriteLine("• Medium tournaments (12 entries): +1 point for top half");
     Console.WriteLine("• Large tournaments (>12 entries): +2 points for 1st, +1 point for 2nd-8th");
     Console.WriteLine("• Maximum: 3 points (1 + 2)");
 }
+Console.WriteLine();
+Console.WriteLine("Tournament Requirements:");
+Console.WriteLine("• Minimum 4 schools must attend for a tournament to count");
 Console.WriteLine();
 
 // Generate student scores output with better formatting
@@ -463,6 +507,33 @@ foreach (var school in schoolTotals)
     }
     Console.WriteLine();
     schoolRank++;
+}
+
+// Display notes about excluded and small tournaments
+if (excludedTournaments.Any() || smallTournaments.Any())
+{
+    Console.WriteLine("\n" + new string('=', 80));
+    Console.WriteLine("NOTES");
+    Console.WriteLine(new string('=', 80));
+    
+    if (excludedTournaments.Any())
+    {
+        Console.WriteLine("\nTournaments excluded (fewer than 4 schools):");
+        foreach (var tournament in excludedTournaments)
+        {
+            Console.WriteLine($"  • {tournament}");
+        }
+    }
+    
+    if (smallTournaments.Any())
+    {
+        Console.WriteLine("\nSmall tournaments (≤11 entries - modified scoring):");
+        foreach (var tournament in smallTournaments)
+        {
+            Console.WriteLine($"  • {tournament}");
+        }
+        Console.WriteLine("  Note: Only top half receive bonus points; no first place bonus awarded");
+    }
 }
 
 Console.WriteLine("\nProcessing complete. Press any key to return to main menu.");
@@ -586,6 +657,33 @@ static string GenerateMarkdownReport()
                     report.AppendLine("*No tournament data available*");
                 }
                 report.AppendLine();
+                
+                // Add notes section if there are any excluded or small tournaments
+                if (eventData.ExcludedTournaments.Any() || eventData.SmallTournaments.Any())
+                {
+                    report.AppendLine("### Notes");
+                    
+                    if (eventData.ExcludedTournaments.Any())
+                    {
+                        report.AppendLine("**Tournaments excluded (fewer than 4 schools):**");
+                        foreach (var tournament in eventData.ExcludedTournaments)
+                        {
+                            report.AppendLine($"- {tournament}");
+                        }
+                        report.AppendLine();
+                    }
+                    
+                    if (eventData.SmallTournaments.Any())
+                    {
+                        report.AppendLine("**Small tournaments (≤11 entries - modified scoring):**");
+                        foreach (var tournament in eventData.SmallTournaments)
+                        {
+                            report.AppendLine($"- {tournament}");
+                        }
+                        report.AppendLine("*Note: Only top half receive bonus points; no first place bonus awarded*");
+                        report.AppendLine();
+                    }
+                }
             }
         }
     }
@@ -709,6 +807,33 @@ static string GenerateDetailedMarkdownReport()
                     report.AppendLine("*No tournament data available*");
                 }
                 report.AppendLine();
+                
+                // Add notes section if there are any excluded or small tournaments
+                if (eventData.ExcludedTournaments.Any() || eventData.SmallTournaments.Any())
+                {
+                    report.AppendLine("### Notes");
+                    
+                    if (eventData.ExcludedTournaments.Any())
+                    {
+                        report.AppendLine("**Tournaments excluded (fewer than 4 schools):**");
+                        foreach (var tournament in eventData.ExcludedTournaments)
+                        {
+                            report.AppendLine($"- {tournament}");
+                        }
+                        report.AppendLine();
+                    }
+                    
+                    if (eventData.SmallTournaments.Any())
+                    {
+                        report.AppendLine("**Small tournaments (≤11 entries - modified scoring):**");
+                        foreach (var tournament in eventData.SmallTournaments)
+                        {
+                            report.AppendLine($"- {tournament}");
+                        }
+                        report.AppendLine("*Note: Only top half receive bonus points; no first place bonus awarded*");
+                        report.AppendLine();
+                    }
+                }
             }
         }
     }
@@ -787,10 +912,44 @@ static EventReportData ProcessEventForDetailedReport(string filePath, string eve
     bool isCongress = filePath.Contains("CODebate", StringComparison.OrdinalIgnoreCase);
     
     var groupedScores = tournamentScores.GroupBy(ts => ts.Tournament).ToList();
+    
+    // Track tournaments that don't meet requirements
+    var excludedTournaments = new List<string>();
+    var smallTournaments = new List<string>();
+    
+    // First pass: Check which tournaments meet the 4-school minimum
+    var validTournaments = new HashSet<string>();
+    foreach (var group in groupedScores)
+    {
+        var tournamentEntries = group.ToList();
+        var uniqueSchools = tournamentEntries.Select(e => e.School).Distinct().Count();
+        
+        if (uniqueSchools >= 4)
+        {
+            validTournaments.Add(group.Key);
+        }
+        else
+        {
+            excludedTournaments.Add($"{group.Key} (only {uniqueSchools} school{(uniqueSchools == 1 ? "" : "s")})");
+        }
+    }
+    
+    // Remove entries from tournaments that don't meet the 4-school requirement
+    tournamentScores = tournamentScores.Where(ts => validTournaments.Contains(ts.Tournament)).ToList();
+    
+    // Re-group after filtering
+    groupedScores = tournamentScores.GroupBy(ts => ts.Tournament).ToList();
+    
     foreach (var group in groupedScores)
     {
         var tournamentEntries = group.ToList();
         int totalEntries = tournamentEntries.Count;
+        
+        // Track if this is a small tournament for notes
+        if (totalEntries <= 11)
+        {
+            smallTournaments.Add($"{group.Key} ({totalEntries} entries)");
+        }
 
         foreach (var entry in tournamentEntries)
         {
@@ -810,13 +969,21 @@ static EventReportData ProcessEventForDetailedReport(string filePath, string eve
             }
             else
             {
-                if (totalEntries <= 12)
+                if (totalEntries <= 11)
                 {
+                    // For tournaments with 11 or fewer entries: only half get bonus, no first place points
+                    int topHalfCutoff = (int)Math.Ceiling(totalEntries / 2.0);
+                    bonusPoints = entry.Place <= topHalfCutoff ? 1 : 0;
+                }
+                else if (totalEntries == 12)
+                {
+                    // For tournaments with exactly 12 entries, award 1 point to top half
                     int topHalfCutoff = (int)Math.Ceiling(totalEntries / 2.0);
                     bonusPoints = entry.Place <= topHalfCutoff ? 1 : 0;
                 }
                 else
                 {
+                    // Standard bonus logic for larger tournaments (>12 entries)
                     if (entry.Place == 1)
                         bonusPoints = 2;
                     else if (entry.Place >= 2 && entry.Place <= 8)
@@ -825,6 +992,7 @@ static EventReportData ProcessEventForDetailedReport(string filePath, string eve
             }
 
             entry.Points += bonusPoints;
+            entry.Points += entry.ElimPoints;
         }
     }
 
@@ -936,7 +1104,9 @@ static EventReportData ProcessEventForDetailedReport(string filePath, string eve
     {
         HasData = true,
         TopStudents = topStudents,
-        TopSchools = topSchools
+        TopSchools = topSchools,
+        ExcludedTournaments = excludedTournaments,
+        SmallTournaments = smallTournaments
     };
 }
 
@@ -1007,10 +1177,44 @@ static EventReportData ProcessEventForReport(string filePath, string eventName)
     bool isCongress = filePath.Contains("CODebate", StringComparison.OrdinalIgnoreCase);
     
     var groupedScores = tournamentScores.GroupBy(ts => ts.Tournament).ToList();
+    
+    // Track tournaments that don't meet requirements
+    var excludedTournaments = new List<string>();
+    var smallTournaments = new List<string>();
+    
+    // First pass: Check which tournaments meet the 4-school minimum
+    var validTournaments = new HashSet<string>();
+    foreach (var group in groupedScores)
+    {
+        var tournamentEntries = group.ToList();
+        var uniqueSchools = tournamentEntries.Select(e => e.School).Distinct().Count();
+        
+        if (uniqueSchools >= 4)
+        {
+            validTournaments.Add(group.Key);
+        }
+        else
+        {
+            excludedTournaments.Add($"{group.Key} (only {uniqueSchools} school{(uniqueSchools == 1 ? "" : "s")})");
+        }
+    }
+    
+    // Remove entries from tournaments that don't meet the 4-school requirement
+    tournamentScores = tournamentScores.Where(ts => validTournaments.Contains(ts.Tournament)).ToList();
+    
+    // Re-group after filtering
+    groupedScores = tournamentScores.GroupBy(ts => ts.Tournament).ToList();
+    
     foreach (var group in groupedScores)
     {
         var tournamentEntries = group.ToList();
         int totalEntries = tournamentEntries.Count;
+        
+        // Track if this is a small tournament for notes
+        if (totalEntries <= 11)
+        {
+            smallTournaments.Add($"{group.Key} ({totalEntries} entries)");
+        }
 
         foreach (var entry in tournamentEntries)
         {
@@ -1030,13 +1234,21 @@ static EventReportData ProcessEventForReport(string filePath, string eventName)
             }
             else
             {
-                if (totalEntries <= 12)
+                if (totalEntries <= 11)
                 {
+                    // For tournaments with 11 or fewer entries: only half get bonus, no first place points
+                    int topHalfCutoff = (int)Math.Ceiling(totalEntries / 2.0);
+                    bonusPoints = entry.Place <= topHalfCutoff ? 1 : 0;
+                }
+                else if (totalEntries == 12)
+                {
+                    // For tournaments with exactly 12 entries, award 1 point to top half
                     int topHalfCutoff = (int)Math.Ceiling(totalEntries / 2.0);
                     bonusPoints = entry.Place <= topHalfCutoff ? 1 : 0;
                 }
                 else
                 {
+                    // Standard bonus logic for larger tournaments (>12 entries)
                     if (entry.Place == 1)
                         bonusPoints = 2;
                     else if (entry.Place >= 2 && entry.Place <= 8)
@@ -1045,6 +1257,7 @@ static EventReportData ProcessEventForReport(string filePath, string eventName)
             }
 
             entry.Points += bonusPoints;
+            entry.Points += entry.ElimPoints;
         }
     }
 
@@ -1153,7 +1366,9 @@ static EventReportData ProcessEventForReport(string filePath, string eventName)
     {
         HasData = true,
         TopStudents = topStudents,
-        TopSchools = topSchools
+        TopSchools = topSchools,
+        ExcludedTournaments = excludedTournaments,
+        SmallTournaments = smallTournaments
     };
 }
 
@@ -1163,6 +1378,8 @@ class EventReportData
     public bool HasData { get; set; }
     public List<StudentReportData> TopStudents { get; set; } = new();
     public List<SchoolReportData> TopSchools { get; set; } = new();
+    public List<string> ExcludedTournaments { get; set; } = new();
+    public List<string> SmallTournaments { get; set; } = new();
 }
 
 class StudentReportData
