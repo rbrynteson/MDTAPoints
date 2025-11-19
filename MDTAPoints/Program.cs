@@ -22,12 +22,13 @@ while (true)
     Console.WriteLine("2. Add tournament data from Tabroom.com (web scraping)");
     Console.WriteLine("3. Generate markdown report for all events");
     Console.WriteLine("4. Generate detailed markdown report with tournament breakdowns");
-    Console.WriteLine("5. Exit");
-    Console.Write("Enter choice (1, 2, 3, 4, or 5): ");
+    Console.WriteLine("5. Generate CSV file for an event");
+    Console.WriteLine("6. Exit");
+    Console.Write("Enter choice (1, 2, 3, 4, 5, or 6): ");
 
     string choice = Console.ReadLine()?.Trim() ?? "1";
 
-    if (choice == "5")
+    if (choice == "6")
     {
         Console.WriteLine("Goodbye!");
         break;
@@ -93,6 +94,67 @@ if (choice == "4")
     catch (Exception ex)
     {
         Console.WriteLine($"Error generating detailed report: {ex.Message}");
+        Console.WriteLine("Press any key to return to main menu.");
+        Console.ReadKey();
+        continue;
+    }
+}
+
+if (choice == "5")
+{
+    // Generate CSV file for an event
+    Console.WriteLine("\nGenerate CSV File for Event");
+    Console.WriteLine("===========================");
+    Console.WriteLine("Available event files:");
+
+    var csvEventFiles = new Dictionary<string, string>
+    {
+        ["1"] = "ClassicDebate.csv",
+        ["2"] = "CODebate.csv", 
+        ["3"] = "LDDebate.csv",
+        ["4"] = "PFDebate.csv",
+        ["5"] = "CXDebate.csv"
+    };
+
+    foreach (var kvp in csvEventFiles)
+    {
+        var fileExists = File.Exists(kvp.Value);
+        var status = fileExists ? "✓" : "✗";
+        Console.WriteLine($"{kvp.Key}. {kvp.Value} {status}");
+    }
+
+    Console.Write("Select event file to export (1-5): ");
+    string csvFileChoice = Console.ReadLine()?.Trim() ?? "1";
+
+    if (!csvEventFiles.ContainsKey(csvFileChoice))
+    {
+        Console.WriteLine("Invalid choice.");
+        Console.WriteLine("Press any key to return to main menu.");
+        Console.ReadKey();
+        continue;
+    }
+
+    string csvFilePath = csvEventFiles[csvFileChoice];
+
+    if (!File.Exists(csvFilePath))
+    {
+        Console.WriteLine($"File {csvFilePath} not found. Please add tournament data first using option 2.");
+        Console.WriteLine("Press any key to return to main menu.");
+        Console.ReadKey();
+        continue;
+    }
+
+    try
+    {
+        string outputCsvFileName = GenerateEventCSV(csvFilePath);
+        Console.WriteLine($"\nCSV file generated successfully: {outputCsvFileName}");
+        Console.WriteLine("Press any key to return to main menu.");
+        Console.ReadKey();
+        continue;
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Error generating CSV: {ex.Message}");
         Console.WriteLine("Press any key to return to main menu.");
         Console.ReadKey();
         continue;
@@ -1108,6 +1170,166 @@ static EventReportData ProcessEventForDetailedReport(string filePath, string eve
         ExcludedTournaments = excludedTournaments,
         SmallTournaments = smallTournaments
     };
+}
+
+// Method to generate CSV file for an event
+static string GenerateEventCSV(string filePath)
+{
+    var tournamentScores = new List<EntryTournamentScore>();
+    
+    // Load CSV file
+    using (var reader = new StreamReader(filePath))
+    {
+        string? headerLine = reader.ReadLine(); // Skip header
+        string? line;
+        
+        while ((line = reader.ReadLine()) != null)
+        {
+            var parts = line.Split(',');
+            if (parts.Length >= 6)
+            {
+                string tournament = parts[0].Trim();
+                string year = parts[1].Trim();
+                string placeText = parts[2].Trim();
+                string entry = parts[3].Trim();
+                string school = parts[4].Trim();
+                string elimPointsText = parts[5].Trim();
+
+                // Skip invalid rows
+                if (string.IsNullOrEmpty(tournament) || string.IsNullOrEmpty(year) || string.IsNullOrEmpty(entry) || string.IsNullOrEmpty(school))
+                    continue;
+
+                // Parse place and elimination points
+                int place = int.TryParse(placeText, out int parsedPlace) ? parsedPlace : 0;
+                int elimPoints = int.TryParse(elimPointsText, out int parsedElimPoints) ? parsedElimPoints : 0;
+
+                // Split entry into individual names
+                var names = entry.Split('&', StringSplitOptions.TrimEntries);
+
+                foreach (var name in names)
+                {
+                    tournamentScores.Add(new EntryTournamentScore
+                    {
+                        Entry = $"{school}:{name}",
+                        School = school,
+                        Tournament = tournament,
+                        Year = year,
+                        Points = 1, // Start with participation point
+                        ElimPoints = elimPoints,
+                        Place = place
+                    });
+                }
+            }
+        }
+    }
+
+    // Apply scoring logic (same as main program)
+    bool isCongress = filePath.Contains("CODebate", StringComparison.OrdinalIgnoreCase);
+    
+    var groupedScores = tournamentScores.GroupBy(ts => ts.Tournament).ToList();
+    
+    // First pass: Check which tournaments meet the 4-school minimum
+    var validTournaments = new HashSet<string>();
+    foreach (var group in groupedScores)
+    {
+        var tournamentEntries = group.ToList();
+        var uniqueSchools = tournamentEntries.Select(e => e.School).Distinct().Count();
+        
+        if (uniqueSchools >= 4)
+        {
+            validTournaments.Add(group.Key);
+        }
+    }
+    
+    // Remove entries from tournaments that don't meet the 4-school requirement
+    tournamentScores = tournamentScores.Where(ts => validTournaments.Contains(ts.Tournament)).ToList();
+    
+    // Re-group after filtering
+    groupedScores = tournamentScores.GroupBy(ts => ts.Tournament).ToList();
+    
+    // Process each tournament to calculate bonuses
+    foreach (var group in groupedScores)
+    {
+        var tournamentEntries = group.ToList();
+        int totalEntries = tournamentEntries.Count;
+        
+        foreach (var entry in tournamentEntries)
+        {
+            int bonusPoints = 0;
+            
+            if (isCongress)
+            {
+                if (entry.Place <= 12)
+                {
+                    bonusPoints += 1; // Finals bonus
+                    
+                    if (entry.Place == 1)
+                        bonusPoints += 2;
+                    else if (entry.Place >= 2 && entry.Place <= 8)
+                        bonusPoints += 1;
+                }
+            }
+            else
+            {
+                if (totalEntries <= 11)
+                {
+                    int topHalfCutoff = (int)Math.Ceiling(totalEntries / 2.0);
+                    bonusPoints = entry.Place <= topHalfCutoff ? 1 : 0;
+                }
+                else if (totalEntries == 12)
+                {
+                    int topHalfCutoff = (int)Math.Ceiling(totalEntries / 2.0);
+                    bonusPoints = entry.Place <= topHalfCutoff ? 1 : 0;
+                }
+                else
+                {
+                    if (entry.Place == 1)
+                        bonusPoints = 2;
+                    else if (entry.Place >= 2 && entry.Place <= 8)
+                        bonusPoints = 1;
+                }
+            }
+
+            entry.Points += bonusPoints;
+            entry.Points += entry.ElimPoints;
+        }
+    }
+
+    // Calculate student scores
+    var studentScores = tournamentScores
+        .GroupBy(score => score.Entry)
+        .Select(group => new
+        {
+            Entry = group.Key,
+            School = group.First().School,
+            TotalTournaments = group.Select(score => score.Tournament).Distinct().Count(),
+            TotalPoints = group.Sum(score => score.Points)
+        })
+        .OrderByDescending(entry => entry.TotalPoints)
+        .ThenBy(entry => entry.Entry)
+        .ToList();
+
+    // Generate output CSV file name
+    string eventName = Path.GetFileNameWithoutExtension(filePath);
+    string outputFileName = $"{eventName}_Results_{DateTime.Now:yyyy-MM-dd_HH-mm}.csv";
+
+    // Write CSV file
+    using (var writer = new StreamWriter(outputFileName))
+    {
+        // Write header
+        writer.WriteLine("Rank,Student Name,School,Total Points,Number of Tournaments");
+        
+        // Write data
+        int rank = 1;
+        foreach (var student in studentScores)
+        {
+            string studentName = student.Entry.Split(':').LastOrDefault() ?? student.Entry;
+            writer.WriteLine($"{rank},{studentName},{student.School},{student.TotalPoints},{student.TotalTournaments}");
+            rank++;
+        }
+    }
+
+    return outputFileName;
 }
 
 // Helper method to process event data for reporting
