@@ -23,12 +23,13 @@ while (true)
     Console.WriteLine("3. Generate markdown report for all events");
     Console.WriteLine("4. Generate detailed markdown report with tournament breakdowns");
     Console.WriteLine("5. Generate CSV file for an event");
-    Console.WriteLine("6. Exit");
-    Console.Write("Enter choice (1, 2, 3, 4, 5, or 6): ");
+    Console.WriteLine("6. View bonus points only (no participation points)");
+    Console.WriteLine("7. Exit");
+    Console.Write("Enter choice (1, 2, 3, 4, 5, 6, or 7): ");
 
     string choice = Console.ReadLine()?.Trim() ?? "1";
 
-    if (choice == "6")
+    if (choice == "7")
     {
         Console.WriteLine("Goodbye!");
         break;
@@ -161,52 +162,45 @@ if (choice == "5")
     }
 }
 
-if (choice == "2")
+if (choice == "6")
 {
-    // Web scraping option - Add tournament data
-    Console.WriteLine("\nAdd Tournament Data from Tabroom.com");
-    Console.WriteLine("====================================");
-    
-    // Show event file selection menu
-    Console.WriteLine("Select event type to add tournament data to:");
-    Console.WriteLine("1. ClassicDebate.csv - Classic debate tournaments");
-    Console.WriteLine("2. CODebate.csv - Congressional debate tournaments");
-    Console.WriteLine("3. LDDebate.csv - Lincoln-Douglas debate tournaments");
-    Console.WriteLine("4. PFDebate.csv - Public Forum debate tournaments");
-    Console.WriteLine("5. CXDebate.csv - Cross-Examination/Policy debate tournaments");
-    Console.Write("Select event type (1-5): ");
-    
-    string eventChoice = Console.ReadLine()?.Trim() ?? "1";
-    
-    var eventMapping = new Dictionary<string, (string fileName, string eventType)>
+    // View bonus points only (no participation points)
+    Console.WriteLine("\nView Bonus Points Only");
+    Console.WriteLine("======================");
+    Console.WriteLine("Available event files:");
+
+    var bonusEventFiles = new Dictionary<string, string>
     {
-        ["1"] = ("ClassicDebate.csv", "Classic"),
-        ["2"] = ("CODebate.csv", "Congress"),
-        ["3"] = ("LDDebate.csv", "LD"),
-        ["4"] = ("PFDebate.csv", "PF"),
-        ["5"] = ("CXDebate.csv", "CX")
+        ["1"] = "ClassicDebate.csv",
+        ["2"] = "CODebate.csv", 
+        ["3"] = "LDDebate.csv",
+        ["4"] = "PFDebate.csv",
+        ["5"] = "CXDebate.csv"
     };
-    
-    if (!eventMapping.ContainsKey(eventChoice))
+
+    foreach (var kvp in bonusEventFiles)
+    {
+        var fileExists = File.Exists(kvp.Value);
+        var status = fileExists ? "✓" : "✗";
+        Console.WriteLine($"{kvp.Key}. {kvp.Value} {status}");
+    }
+
+    Console.Write("Select event file to view (1-5): ");
+    string bonusFileChoice = Console.ReadLine()?.Trim() ?? "1";
+
+    if (!bonusEventFiles.ContainsKey(bonusFileChoice))
     {
         Console.WriteLine("Invalid choice.");
         Console.WriteLine("Press any key to return to main menu.");
         Console.ReadKey();
         continue;
     }
-    
-    var (fileName, eventType) = eventMapping[eventChoice];
-    Console.WriteLine($"Selected: {fileName}");
-    
-    Console.Write("\nEnter Tabroom.com results URL: ");
-    string url = Console.ReadLine()?.Trim() ?? "";
-    
-    Console.Write("Enter tournament name: ");
-    string tournamentName = Console.ReadLine()?.Trim() ?? "Tournament";
 
-    if (string.IsNullOrEmpty(url))
+    string bonusFilePath = bonusEventFiles[bonusFileChoice];
+
+    if (!File.Exists(bonusFilePath))
     {
-        Console.WriteLine("URL is required.");
+        Console.WriteLine($"File {bonusFilePath} not found. Please add tournament data first using option 2.");
         Console.WriteLine("Press any key to return to main menu.");
         Console.ReadKey();
         continue;
@@ -214,35 +208,50 @@ if (choice == "2")
 
     try
     {
-        using var scraper = new TabroomScraper();
-        var entries = await scraper.ScrapeTabroomResults(url, tournamentName, eventType);
+        var bonusResults = ProcessBonusPointsOnly(bonusFilePath);
         
-        if (entries.Count == 0)
+        // Display results
+        Console.WriteLine("\n" + new string('=', 80));
+        Console.WriteLine("BONUS POINTS ONLY (Participation Points Excluded)");
+        Console.WriteLine(new string('=', 80));
+        Console.WriteLine($"{"Rank",-6} {"Student",-30} {"School",-25} {"Bonus Points",-12}");
+        Console.WriteLine(new string('-', 80));
+
+        int rank = 1;
+        foreach (var student in bonusResults)
         {
-            Console.WriteLine("No data found or error occurred during scraping.");
-            Console.WriteLine("Press any key to return to main menu.");
-            Console.ReadKey();
-            continue;
+            string studentName = student.Entry.Split(':').LastOrDefault() ?? student.Entry;
+            Console.WriteLine($"{rank,-6} {studentName,-30} {student.School,-25} {student.BonusPoints,-12}");
+            rank++;
         }
 
-        // Append to appropriate event CSV file
-        await scraper.AppendToEventCSV(entries, eventType);
+        Console.WriteLine(new string('=', 80));
         
-        Console.WriteLine($"Tournament data added successfully!");
-        Console.WriteLine("You can now run option 1 to analyze the updated data.");
+        // Ask if user wants to export to CSV
+        Console.Write("\nWould you like to export this to CSV? (y/n): ");
+        string exportChoice = Console.ReadLine()?.Trim().ToLower() ?? "n";
+        
+        if (exportChoice == "y" || exportChoice == "yes")
+        {
+            string outputFileName = ExportBonusPointsToCSV(bonusFilePath, bonusResults);
+            Console.WriteLine($"\nCSV file generated successfully: {outputFileName}");
+        }
+        
         Console.WriteLine("\nPress any key to return to main menu.");
         Console.ReadKey();
         continue;
     }
     catch (Exception ex)
     {
-        Console.WriteLine($"Error during web scraping: {ex.Message}");
+        Console.WriteLine($"Error processing bonus points: {ex.Message}");
         Console.WriteLine("Press any key to return to main menu.");
         Console.ReadKey();
         continue;
     }
 }
 
+if (choice == "1")
+{
 // Option 1: Process existing event data
 Console.WriteLine("\nProcess Event Data");
 Console.WriteLine("==================");
@@ -288,6 +297,11 @@ if (!File.Exists(filePath))
 // Define dictionaries to hold individual tournament scores
 var tournamentScores = new List<EntryTournamentScore>();
 
+// Determine if this is a team event (CX, PF, Classic) or individual event (LD, CO)
+bool isTeamEvent = filePath.Contains("CXDebate", StringComparison.OrdinalIgnoreCase) ||
+                   filePath.Contains("PFDebate", StringComparison.OrdinalIgnoreCase) ||
+                   filePath.Contains("ClassicDebate", StringComparison.OrdinalIgnoreCase);
+
 // Load CSV file with new format
 using (var reader = new StreamReader(filePath))
 {
@@ -321,16 +335,21 @@ using (var reader = new StreamReader(filePath))
 
         foreach (var name in names)
         {
-                // Add this entry's score for the tournament - start with just participation point
+            // For team events, extract just the last name (e.g., "Molly Brothers" -> "Brothers")
+            // For individual events, use the full name
+            string studentName = isTeamEvent ? ExtractLastName(name) : name;
+            
+            // Add this entry's score for the tournament - start with just participation point
             tournamentScores.Add(new EntryTournamentScore
             {
-                Entry = $"{school}:{name}",
+                Entry = $"{school}:{studentName}",
                 School = school,
                 Tournament = tournament,
                 Year = year,
                     Points = 1, // Start with just participation point - bonuses added later
                 ElimPoints = elimPoints,
-                Place = place
+                Place = place,
+                TeamEntry = entry // Store original team entry (e.g., "Brothers & Hazard" or "Molly Brothers")
             });
             }
         }
@@ -376,7 +395,11 @@ groupedScores = tournamentScores.GroupBy(ts => ts.Tournament).ToList();
 foreach (var group in groupedScores)
 {
     var tournamentEntries = group.ToList();
-    int totalEntries = tournamentEntries.Count;
+    // For team events (CX, PF, Classic), count unique team entries
+    // For individual events (LD, CO), count individual student entries
+    int totalEntries = isTeamEvent
+        ? tournamentEntries.Select(e => e.TeamEntry).Distinct().Count()
+        : tournamentEntries.Count;
 
     // Track if this is a small tournament for notes
     if (totalEntries <= 11)
@@ -600,6 +623,102 @@ if (excludedTournaments.Any() || smallTournaments.Any())
 
 Console.WriteLine("\nProcessing complete. Press any key to return to main menu.");
 Console.ReadKey();
+}
+
+if (choice == "2")
+{
+    // Web scraping option - Add tournament data
+    Console.WriteLine("\nAdd Tournament Data from Tabroom.com");
+    Console.WriteLine("====================================");
+    
+    // Show event file selection menu
+    Console.WriteLine("Select event type to add tournament data to:");
+    Console.WriteLine("1. ClassicDebate.csv - Classic debate tournaments");
+    Console.WriteLine("2. CODebate.csv - Congressional debate tournaments");
+    Console.WriteLine("3. LDDebate.csv - Lincoln-Douglas debate tournaments");
+    Console.WriteLine("4. PFDebate.csv - Public Forum debate tournaments");
+    Console.WriteLine("5. CXDebate.csv - Cross-Examination/Policy debate tournaments");
+    Console.Write("Select event type (1-5): ");
+    
+    string eventChoice = Console.ReadLine()?.Trim() ?? "1";
+    
+    var eventMapping = new Dictionary<string, (string fileName, string eventType)>
+    {
+        ["1"] = ("ClassicDebate.csv", "Classic"),
+        ["2"] = ("CODebate.csv", "Congress"),
+        ["3"] = ("LDDebate.csv", "LD"),
+        ["4"] = ("PFDebate.csv", "PF"),
+        ["5"] = ("CXDebate.csv", "CX")
+    };
+    
+    if (!eventMapping.ContainsKey(eventChoice))
+    {
+        Console.WriteLine("Invalid choice.");
+        Console.WriteLine("Press any key to return to main menu.");
+        Console.ReadKey();
+        continue;
+    }
+    
+    var (fileName, eventType) = eventMapping[eventChoice];
+    Console.WriteLine($"Selected: {fileName}");
+    
+    Console.Write("\nEnter Tabroom.com results URL: ");
+    string url = Console.ReadLine()?.Trim() ?? "";
+    
+    Console.Write("Enter tournament name: ");
+    string tournamentName = Console.ReadLine()?.Trim() ?? "Tournament";
+
+    if (string.IsNullOrEmpty(url))
+    {
+        Console.WriteLine("URL is required.");
+        Console.WriteLine("Press any key to return to main menu.");
+        Console.ReadKey();
+        continue;
+    }
+
+    try
+    {
+        using var scraper = new TabroomScraper();
+        var entries = await scraper.ScrapeTabroomResults(url, tournamentName, eventType);
+        
+        if (entries.Count == 0)
+        {
+            Console.WriteLine("No data found or error occurred during scraping.");
+            Console.WriteLine("Press any key to return to main menu.");
+            Console.ReadKey();
+            continue;
+        }
+
+        // Append to appropriate event CSV file
+        await scraper.AppendToEventCSV(entries, eventType);
+        
+        Console.WriteLine($"Tournament data added successfully!");
+        Console.WriteLine("You can now run option 1 to analyze the updated data.");
+        Console.WriteLine("\nPress any key to return to main menu.");
+        Console.ReadKey();
+        continue;
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Error during web scraping: {ex.Message}");
+        Console.WriteLine("Press any key to return to main menu.");
+        Console.ReadKey();
+        continue;
+    }
+}
+}
+
+// Helper method to extract last name from a full name
+// For team events, we only use last names to match students (e.g., "Molly Brothers" -> "Brothers")
+// For individual events, we use the full name
+static string ExtractLastName(string fullName)
+{
+    if (string.IsNullOrWhiteSpace(fullName))
+        return fullName;
+    
+    var parts = fullName.Trim().Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+    // Return the last part (last name), or the full name if it's just one word
+    return parts.Length > 0 ? parts[parts.Length - 1] : fullName;
 }
 
 // Method to ensure CSV files exist with headers
@@ -912,6 +1031,11 @@ static EventReportData ProcessEventForDetailedReport(string filePath, string eve
 {
     var tournamentScores = new List<EntryTournamentScore>();
     
+    // Determine if this is a team event (CX, PF, Classic) or individual event (LD, CO)
+    bool isTeamEvent = filePath.Contains("CXDebate", StringComparison.OrdinalIgnoreCase) ||
+                       filePath.Contains("PFDebate", StringComparison.OrdinalIgnoreCase) ||
+                       filePath.Contains("ClassicDebate", StringComparison.OrdinalIgnoreCase);
+    
     // Load CSV file (same as regular report)
     try
     {
@@ -945,15 +1069,20 @@ static EventReportData ProcessEventForDetailedReport(string filePath, string eve
 
                     foreach (var name in names)
                     {
+                        // For team events, extract just the last name (e.g., "Molly Brothers" -> "Brothers")
+                        // For individual events, use the full name
+                        string studentName = isTeamEvent ? ExtractLastName(name) : name;
+                        
                         tournamentScores.Add(new EntryTournamentScore
                         {
-                            Entry = $"{school}:{name}",
+                            Entry = $"{school}:{studentName}",
                             School = school,
                             Tournament = tournament,
                             Year = year,
                             Points = 1, // Start with participation point
                             ElimPoints = elimPoints,
-                            Place = place
+                            Place = place,
+                            TeamEntry = entry // Store original team entry
                         });
                     }
                 }
@@ -1005,7 +1134,11 @@ static EventReportData ProcessEventForDetailedReport(string filePath, string eve
     foreach (var group in groupedScores)
     {
         var tournamentEntries = group.ToList();
-        int totalEntries = tournamentEntries.Count;
+        // For team events (CX, PF, Classic), count unique team entries
+        // For individual events (LD, CO), count individual student entries
+        int totalEntries = isTeamEvent
+            ? tournamentEntries.Select(e => e.TeamEntry).Distinct().Count()
+            : tournamentEntries.Count;
         
         // Track if this is a small tournament for notes
         if (totalEntries <= 11)
@@ -1172,10 +1305,15 @@ static EventReportData ProcessEventForDetailedReport(string filePath, string eve
     };
 }
 
-// Method to generate CSV file for an event
-static string GenerateEventCSV(string filePath)
+// Method to process bonus points only (excluding participation points)
+static List<BonusPointsData> ProcessBonusPointsOnly(string filePath)
 {
     var tournamentScores = new List<EntryTournamentScore>();
+    
+    // Determine if this is a team event (CX, PF, Classic) or individual event (LD, CO)
+    bool isTeamEvent = filePath.Contains("CXDebate", StringComparison.OrdinalIgnoreCase) ||
+                       filePath.Contains("PFDebate", StringComparison.OrdinalIgnoreCase) ||
+                       filePath.Contains("ClassicDebate", StringComparison.OrdinalIgnoreCase);
     
     // Load CSV file
     using (var reader = new StreamReader(filePath))
@@ -1208,15 +1346,198 @@ static string GenerateEventCSV(string filePath)
 
                 foreach (var name in names)
                 {
+                    // For team events, extract just the last name (e.g., "Molly Brothers" -> "Brothers")
+                    // For individual events, use the full name
+                    string studentName = isTeamEvent ? ExtractLastName(name) : name;
+                    
                     tournamentScores.Add(new EntryTournamentScore
                     {
-                        Entry = $"{school}:{name}",
+                        Entry = $"{school}:{studentName}",
+                        School = school,
+                        Tournament = tournament,
+                        Year = year,
+                        Points = 0, // Start with 0 - we only want bonus points
+                        ElimPoints = elimPoints,
+                        Place = place,
+                        TeamEntry = entry // Store original team entry
+                    });
+                }
+            }
+        }
+    }
+
+    // Apply scoring logic (same as main program but without participation point)
+    bool isCongress = filePath.Contains("CODebate", StringComparison.OrdinalIgnoreCase);
+    
+    var groupedScores = tournamentScores.GroupBy(ts => ts.Tournament).ToList();
+    
+    // First pass: Check which tournaments meet the 4-school minimum
+    var validTournaments = new HashSet<string>();
+    foreach (var group in groupedScores)
+    {
+        var tournamentEntries = group.ToList();
+        var uniqueSchools = tournamentEntries.Select(e => e.School).Distinct().Count();
+        
+        if (uniqueSchools >= 4)
+        {
+            validTournaments.Add(group.Key);
+        }
+    }
+    
+    // Remove entries from tournaments that don't meet the 4-school requirement
+    tournamentScores = tournamentScores.Where(ts => validTournaments.Contains(ts.Tournament)).ToList();
+    
+    // Re-group after filtering
+    groupedScores = tournamentScores.GroupBy(ts => ts.Tournament).ToList();
+    
+    // Process each tournament to calculate bonuses
+    foreach (var group in groupedScores)
+    {
+        var tournamentEntries = group.ToList();
+        // For team events (CX, PF, Classic), count unique team entries
+        // For individual events (LD, CO), count individual student entries
+        int totalEntries = isTeamEvent
+            ? tournamentEntries.Select(e => e.TeamEntry).Distinct().Count()
+            : tournamentEntries.Count;
+        
+        foreach (var entry in tournamentEntries)
+        {
+            int bonusPoints = 0;
+            
+            if (isCongress)
+            {
+                if (entry.Place <= 12)
+                {
+                    bonusPoints += 1; // Finals bonus
+                    
+                    if (entry.Place == 1)
+                        bonusPoints += 2;
+                    else if (entry.Place >= 2 && entry.Place <= 8)
+                        bonusPoints += 1;
+                }
+            }
+            else
+            {
+                if (totalEntries <= 11)
+                {
+                    int topHalfCutoff = (int)Math.Ceiling(totalEntries / 2.0);
+                    bonusPoints = entry.Place <= topHalfCutoff ? 1 : 0;
+                }
+                else if (totalEntries == 12)
+                {
+                    int topHalfCutoff = (int)Math.Ceiling(totalEntries / 2.0);
+                    bonusPoints = entry.Place <= topHalfCutoff ? 1 : 0;
+                }
+                else
+                {
+                    if (entry.Place == 1)
+                        bonusPoints = 2;
+                    else if (entry.Place >= 2 && entry.Place <= 8)
+                        bonusPoints = 1;
+                }
+            }
+
+            // Only add bonus points and elim points (no participation point)
+            entry.Points += bonusPoints;
+            entry.Points += entry.ElimPoints;
+        }
+    }
+
+    // Calculate student bonus points
+    var studentBonusPoints = tournamentScores
+        .GroupBy(score => score.Entry)
+        .Select(group => new BonusPointsData
+        {
+            Entry = group.Key,
+            School = group.First().School,
+            BonusPoints = group.Sum(score => score.Points)
+        })
+        .OrderByDescending(entry => entry.BonusPoints)
+        .ThenBy(entry => entry.Entry)
+        .ToList();
+
+    return studentBonusPoints;
+}
+
+// Method to export bonus points to CSV
+static string ExportBonusPointsToCSV(string filePath, List<BonusPointsData> bonusResults)
+{
+    string eventName = Path.GetFileNameWithoutExtension(filePath);
+    string outputFileName = $"{eventName}_BonusPoints_{DateTime.Now:yyyy-MM-dd_HH-mm}.csv";
+
+    using (var writer = new StreamWriter(outputFileName))
+    {
+        // Write header
+        writer.WriteLine("Rank,Student Name,School,Bonus Points");
+        
+        // Write data
+        int rank = 1;
+        foreach (var student in bonusResults)
+        {
+            string studentName = student.Entry.Split(':').LastOrDefault() ?? student.Entry;
+            writer.WriteLine($"{rank},{studentName},{student.School},{student.BonusPoints}");
+            rank++;
+        }
+    }
+
+    return outputFileName;
+}
+
+// Method to generate CSV file for an event
+static string GenerateEventCSV(string filePath)
+{
+    var tournamentScores = new List<EntryTournamentScore>();
+    
+    // Determine if this is a team event (CX, PF, Classic) or individual event (LD, CO)
+    bool isTeamEvent = filePath.Contains("CXDebate", StringComparison.OrdinalIgnoreCase) ||
+                       filePath.Contains("PFDebate", StringComparison.OrdinalIgnoreCase) ||
+                       filePath.Contains("ClassicDebate", StringComparison.OrdinalIgnoreCase);
+    
+    // Load CSV file
+    using (var reader = new StreamReader(filePath))
+    {
+        string? headerLine = reader.ReadLine(); // Skip header
+        string? line;
+        
+        while ((line = reader.ReadLine()) != null)
+        {
+            var parts = line.Split(',');
+            if (parts.Length >= 6)
+            {
+                string tournament = parts[0].Trim();
+                string year = parts[1].Trim();
+                string placeText = parts[2].Trim();
+                string entry = parts[3].Trim();
+                string school = parts[4].Trim();
+                string elimPointsText = parts[5].Trim();
+
+                // Skip invalid rows
+                if (string.IsNullOrEmpty(tournament) || string.IsNullOrEmpty(year) || string.IsNullOrEmpty(entry) || string.IsNullOrEmpty(school))
+                    continue;
+
+                // Parse place and elimination points
+                int place = int.TryParse(placeText, out int parsedPlace) ? parsedPlace : 0;
+                int elimPoints = int.TryParse(elimPointsText, out int parsedElimPoints) ? parsedElimPoints : 0;
+
+                // Split entry into individual names
+                var names = entry.Split('&', StringSplitOptions.TrimEntries);
+
+                foreach (var name in names)
+                {
+                    // For team events, extract just the last name (e.g., "Molly Brothers" -> "Brothers")
+                    // For individual events, use the full name
+                    string studentName = isTeamEvent ? ExtractLastName(name) : name;
+                    
+                    tournamentScores.Add(new EntryTournamentScore
+                    {
+                        Entry = $"{school}:{studentName}",
                         School = school,
                         Tournament = tournament,
                         Year = year,
                         Points = 1, // Start with participation point
                         ElimPoints = elimPoints,
-                        Place = place
+                        Place = place,
+                        TeamEntry = entry // Store original team entry
                     });
                 }
             }
@@ -1251,7 +1572,11 @@ static string GenerateEventCSV(string filePath)
     foreach (var group in groupedScores)
     {
         var tournamentEntries = group.ToList();
-        int totalEntries = tournamentEntries.Count;
+        // For team events (CX, PF, Classic), count unique team entries
+        // For individual events (LD, CO), count individual student entries
+        int totalEntries = isTeamEvent
+            ? tournamentEntries.Select(e => e.TeamEntry).Distinct().Count()
+            : tournamentEntries.Count;
         
         foreach (var entry in tournamentEntries)
         {
@@ -1337,6 +1662,11 @@ static EventReportData ProcessEventForReport(string filePath, string eventName)
 {
     var tournamentScores = new List<EntryTournamentScore>();
     
+    // Determine if this is a team event (CX, PF, Classic) or individual event (LD, CO)
+    bool isTeamEvent = filePath.Contains("CXDebate", StringComparison.OrdinalIgnoreCase) ||
+                       filePath.Contains("PFDebate", StringComparison.OrdinalIgnoreCase) ||
+                       filePath.Contains("ClassicDebate", StringComparison.OrdinalIgnoreCase);
+    
     // Load CSV file
     try
     {
@@ -1370,15 +1700,20 @@ static EventReportData ProcessEventForReport(string filePath, string eventName)
 
                     foreach (var name in names)
                     {
+                        // For team events, extract just the last name (e.g., "Molly Brothers" -> "Brothers")
+                        // For individual events, use the full name
+                        string studentName = isTeamEvent ? ExtractLastName(name) : name;
+                        
                         tournamentScores.Add(new EntryTournamentScore
                         {
-                            Entry = $"{school}:{name}",
+                            Entry = $"{school}:{studentName}",
                             School = school,
                             Tournament = tournament,
                             Year = year,
                             Points = 1, // Start with participation point
                             ElimPoints = elimPoints,
-                            Place = place
+                            Place = place,
+                            TeamEntry = entry // Store original team entry
                         });
                     }
                 }
@@ -1430,7 +1765,11 @@ static EventReportData ProcessEventForReport(string filePath, string eventName)
     foreach (var group in groupedScores)
     {
         var tournamentEntries = group.ToList();
-        int totalEntries = tournamentEntries.Count;
+        // For team events (CX, PF, Classic), count unique team entries
+        // For individual events (LD, CO), count individual student entries
+        int totalEntries = isTeamEvent
+            ? tournamentEntries.Select(e => e.TeamEntry).Distinct().Count()
+            : tournamentEntries.Count;
         
         // Track if this is a small tournament for notes
         if (totalEntries <= 11)
@@ -1631,4 +1970,13 @@ class EntryTournamentScore
     public int Points { get; set; }
     public int ElimPoints { get; set; } // New field for ElimPoints
     public int Place { get; set; }
+    public string TeamEntry { get; set; } = string.Empty; // Original team entry before splitting (e.g., "Brothers & Hazard" or "Molly Brothers")
+}
+
+// Class to store bonus points data
+class BonusPointsData
+{
+    public string Entry { get; set; } = string.Empty;
+    public string School { get; set; } = string.Empty;
+    public int BonusPoints { get; set; }
 }

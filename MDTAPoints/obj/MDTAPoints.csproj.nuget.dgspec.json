@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\Richard\\Source\\Repos\\MDTAPoints\\MDTAPoints\\MDTAPoints.csproj": {}
+    "C:\\Users\\Richard\\source\\repos\\MDTAPoints\\MDTAPoints\\MDTAPoints.csproj": {}
   },
   "projects": {
-    "C:\\Users\\Richard\\Source\\Repos\\MDTAPoints\\MDTAPoints\\MDTAPoints.csproj": {
+    "C:\\Users\\Richard\\source\\repos\\MDTAPoints\\MDTAPoints\\MDTAPoints.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\Richard\\Source\\Repos\\MDTAPoints\\MDTAPoints\\MDTAPoints.csproj",
+        "projectUniqueName": "C:\\Users\\Richard\\source\\repos\\MDTAPoints\\MDTAPoints\\MDTAPoints.csproj",
         "projectName": "MDTAPoints",
-        "projectPath": "C:\\Users\\Richard\\Source\\Repos\\MDTAPoints\\MDTAPoints\\MDTAPoints.csproj",
+        "projectPath": "C:\\Users\\Richard\\source\\repos\\MDTAPoints\\MDTAPoints\\MDTAPoints.csproj",
         "packagesPath": "C:\\Users\\Richard\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\Richard\\Source\\Repos\\MDTAPoints\\MDTAPoints\\obj\\",
+        "outputPath": "C:\\Users\\Richard\\source\\repos\\MDTAPoints\\MDTAPoints\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"

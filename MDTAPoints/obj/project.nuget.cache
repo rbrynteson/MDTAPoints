@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "eCCq0A62+5Q=",
+  "dgSpecHash": "uBPx38XDo0w=",
   "success": true,
-  "projectFilePath": "C:\\Users\\Richard\\Source\\Repos\\MDTAPoints\\MDTAPoints\\MDTAPoints.csproj",
+  "projectFilePath": "C:\\Users\\Richard\\source\\repos\\MDTAPoints\\MDTAPoints\\MDTAPoints.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\Richard\\.nuget\\packages\\epplus\\7.5.1\\epplus.7.5.1.nupkg.sha512",
     "C:\\Users\\Richard\\.nuget\\packages\\epplus.interfaces\\7.5.0\\epplus.interfaces.7.5.0.nupkg.sha512",
