@@ -1,5 +1,16 @@
-ClassicDebate.xlsx
-CODebate.xlsx
-LDDebate.xlsx
-/.vs
-/MDTAPoints/ClassicDebate.xlsx
+# Build output
+[Bb]in/
+[Oo]bj/
+PubTmp/
+
+# Visual Studio
+.vs/
+*.user
+*.pubxml.user
+*.rsuser
+
+# Local publish profile with the Azure subscription id
+MDTAPoints.Api/Properties/PublishProfiles/*.pubxml
+
+# Spreadsheets
+*.xlsx

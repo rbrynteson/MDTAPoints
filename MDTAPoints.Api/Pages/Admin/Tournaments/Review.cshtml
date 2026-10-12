@@ -1,0 +1,147 @@
+@page "{id:int}"
+@model MDTAPoints.Api.Pages.Admin.Tournaments.ReviewModel
+@{
+    ViewData["Title"] = Model.Tournament?.Name ?? "Tournament";
+    var tournament = Model.Tournament;
+    var namesToFix = tournament?.Events
+        .SelectMany(item => item.Entries)
+        .SelectMany(entry => entry.Competitors)
+        .Count(competitor => competitor.LinkStatus == "Possible") ?? 0;
+}
+
+@if (tournament is null)
+{
+    <p>That tournament was not found.</p>
+}
+else
+{
+    <h1>@tournament.Name</h1>
+    <p class="muted">@tournament.StartDate.ToString("MMMM d, yyyy") · @tournament.Status · @(tournament.InState ? "Minnesota" : tournament.StateCode)</p>
+    @if (!string.IsNullOrEmpty(Model.Error))
+    {
+        <p class="error">@Model.Error</p>
+    }
+    @if (!string.IsNullOrWhiteSpace(tournament.SkippedSummary))
+    {
+        <p class="muted">Skipped: @tournament.SkippedSummary</p>
+    }
+    @if (namesToFix > 0)
+    {
+        <p class="error">@namesToFix @(namesToFix == 1 ? "name still needs" : "names still need") a choice before publishing. The highlighted rows are marked Possible. Pick the matching student, or New student, then publish.</p>
+    }
+
+    <form method="post">
+        <label>Type
+            <select name="kind">
+                @foreach (var kind in new[] { "Invitational", "Section", "State", "NsdaQualifier" })
+                {
+                    if (tournament.Kind == kind)
+                    {
+                        <option selected>@kind</option>
+                    }
+                    else
+                    {
+                        <option>@kind</option>
+                    }
+                }
+            </select>
+        </label>
+
+        @foreach (var item in tournament.Events)
+        {
+            <section class="event">
+                <h2>@item.Name</h2>
+                <p class="muted">@item.SchoolCount schools, @item.EntryCount entries</p>
+                <input type="hidden" name="eventId" value="@item.Id" />
+                <div class="flags">
+                    <label><input type="checkbox" name="octos" value="@item.Id" checked="@item.BreaksToOctosOrDeeper" /> Broke to octofinals or deeper</label>
+                    <label><input type="checkbox" name="finals" value="@item.Id" checked="@item.HasFinalSession" /> Has a final session</label>
+                    <label><input type="checkbox" name="semis" value="@item.Id" checked="@item.HasSemis" /> Has semifinals</label>
+                </div>
+                <table>
+                    <thead>
+                        <tr><th>Place</th><th>Entry</th><th>School</th><th>Names</th><th>Elim wins</th><th>Flags</th></tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var entry in item.Entries)
+                    {
+                        var needsChoice = entry.Competitors.Any(competitor => competitor.LinkStatus == "Possible");
+                        <tr class="@(needsChoice ? "needs-link" : null)">
+                            <td>@entry.Place</td>
+                            <td>@entry.EntryName</td>
+                            <td>@entry.SchoolName</td>
+                            <td>
+                                @foreach (var competitor in entry.Competitors)
+                                {
+                                    var possible = competitor.LinkStatus == "Possible";
+                                    <div class="@(possible ? "name-fix" : null)">
+                                        <span class="badge @(possible ? "possible" : null)">@competitor.LinkStatus</span>
+                                        @competitor.RawName
+                                        <select name="link_@competitor.Id">
+                                            <option value="unresolved" selected="@(competitor.LinkStatus == "Possible")">Choose</option>
+                                            <option value="new" selected="@(competitor.LinkStatus == "New")">New student</option>
+                                            @foreach (var student in Model.StudentsAt(entry.SchoolId))
+                                            {
+                                                var selected = competitor.LinkStatus == "Linked" && competitor.StudentId == student.Id
+                                                    || competitor.LinkStatus == "Possible" && competitor.SuggestedStudentId == student.Id;
+                                                if (selected && competitor.LinkStatus == "Linked")
+                                                {
+                                                    <option value="@student.Id" selected>@student.DisplayName, @student.SchoolName</option>
+                                                }
+                                                else
+                                                {
+                                                    <option value="@student.Id">@student.DisplayName, @student.SchoolName</option>
+                                                }
+                                            }
+                                        </select>
+                                        @if (competitor.LinkStatus == "Possible" && !string.IsNullOrEmpty(competitor.SuggestedName))
+                                        {
+                                            <span class="muted suggestion">Suggested: @competitor.SuggestedName@((string.IsNullOrWhiteSpace(competitor.SuggestedSchool) ? "" : ", " + competitor.SuggestedSchool))</span>
+                                        }
+                                    </div>
+                                }
+                            </td>
+                            <td><input name="elim_@entry.Id" type="number" min="0" value="@entry.ElimWins" /></td>
+                            <td>
+                                <div class="flags">
+                                    <label><input type="checkbox" name="reached_@entry.Id" checked="@entry.ReachedElims" /> Elims</label>
+                                    <label><input type="checkbox" name="finalist_@entry.Id" checked="@entry.ReachedFinals" /> Finals</label>
+                                    <label><input type="checkbox" name="semi_@entry.Id" checked="@entry.ReachedSemis" /> Semis</label>
+                                    <label><input type="checkbox" name="qualified_@entry.Id" checked="@entry.QualifiedToState" /> Qualified to state</label>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </section>
+        }
+
+        <p>
+            <button type="submit" asp-page-handler="Save">Save</button>
+            <button type="submit" asp-page-handler="Publish">Publish</button>
+        </p>
+    </form>
+
+    <h2>Add an entry</h2>
+    <p class="muted">After adding names to a published tournament, publish again so new students are created and included in the standings.</p>
+    <form method="post" asp-page-handler="Add" class="stack">
+        <label>Event
+            <select name="eventKind">
+                <option value="LincolnDouglas">Lincoln-Douglas</option>
+                <option value="PublicForum">Public Forum</option>
+                <option value="Policy">Policy</option>
+                <option value="Classic">Classic</option>
+                <option value="Congress">Congressional Debate</option>
+            </select>
+        </label>
+        <label>Event name <input name="eventName" required /></label>
+        <label>Place <input name="place" type="number" min="1" value="1" /></label>
+        <label>School <input name="school" required /></label>
+        <label>Names <input name="competitors" placeholder="Alex Kim or Alex Kim & Jordan Lee" required /></label>
+        <label><input type="checkbox" name="prelim" /> Prelim only</label>
+        <label>Elim wins <input name="elimWins" type="number" min="0" value="0" /></label>
+        <label><input type="checkbox" name="reachedFinals" /> Reached finals</label>
+        <button type="submit">Add entry</button>
+    </form>
+}

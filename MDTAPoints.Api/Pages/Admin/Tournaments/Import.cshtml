@@ -1,0 +1,16 @@
+@page
+@model MDTAPoints.Api.Pages.Admin.Tournaments.ImportModel
+@{
+    ViewData["Title"] = "Import";
+}
+
+<h1>Import from Tabroom</h1>
+<p class="muted">Use the tournament id from a results URL, such as 41328 for the Eden Prairie Eagle Invitational.</p>
+@if (!string.IsNullOrEmpty(Model.Error))
+{
+    <p class="error">@Model.Error</p>
+}
+<form method="post" class="stack">
+    <label>Tabroom tournament id <input asp-for="TournamentId" type="number" min="1" required /></label>
+    <button type="submit">Import</button>
+</form>

@@ -1,0 +1,174 @@
+:root {
+    color-scheme: light;
+    font-family: "Segoe UI", sans-serif;
+    color: #1c2430;
+    background: #f4f6f8;
+}
+
+body {
+    margin: 0;
+}
+
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.8rem 1.2rem;
+    background: #14324f;
+    color: white;
+}
+
+header a, header button {
+    color: white;
+    background: transparent;
+    border: 0;
+    font: inherit;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+nav {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+}
+
+.brand {
+    font-weight: 700;
+}
+
+main {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 1.2rem;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+}
+
+th, td {
+    border-bottom: 1px solid #d5dde6;
+    padding: 0.45rem 0.55rem;
+    text-align: left;
+    vertical-align: top;
+}
+
+th {
+    background: #e7eef5;
+}
+
+h2 {
+    margin-top: 1.6rem;
+}
+
+.filters a.current {
+    font-weight: 700;
+    text-decoration: underline;
+}
+
+.filters, .panel, form.stack {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    align-items: end;
+    margin-bottom: 1rem;
+}
+
+label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    font-size: 0.9rem;
+}
+
+label:has(> input[type="checkbox"]) {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.4rem;
+    white-space: nowrap;
+}
+
+.flags {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+    margin: 0.35rem 0 0.8rem;
+}
+
+td .flags {
+    margin: 0;
+}
+
+input, select, button, textarea {
+    font: inherit;
+    padding: 0.35rem 0.45rem;
+}
+
+input[type="number"] {
+    width: 4.5rem;
+}
+
+input[type="checkbox"] {
+    width: 1rem;
+    height: 1rem;
+    margin: 0;
+    padding: 0;
+    flex: 0 0 auto;
+}
+
+button, .button {
+    background: #14324f;
+    color: white;
+    border: 0;
+    text-decoration: none;
+    display: inline-block;
+    cursor: pointer;
+}
+
+.muted {
+    color: #5c6b7a;
+}
+
+.error {
+    color: #8d1d1d;
+    background: #fde8e8;
+    padding: 0.6rem;
+}
+
+.badge {
+    display: inline-block;
+    padding: 0.1rem 0.4rem;
+    background: #e7eef5;
+}
+
+.badge.possible {
+    background: #8d1d1d;
+    color: white;
+    font-weight: 700;
+}
+
+tr.needs-link td {
+    background: #fde8e8;
+}
+
+.name-fix {
+    color: #8d1d1d;
+    font-weight: 600;
+}
+
+.suggestion {
+    white-space: nowrap;
+}
+
+.event {
+    margin-top: 1.5rem;
+}
+
+.dropped {
+    color: #6b5420;
+}

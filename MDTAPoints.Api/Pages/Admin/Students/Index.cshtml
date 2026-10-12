@@ -1,0 +1,76 @@
+@page
+@model MDTAPoints.Api.Pages.Admin.Students.IndexModel
+@{
+    ViewData["Title"] = "Students";
+    var events = new[]
+    {
+        EventKind.LincolnDouglas,
+        EventKind.PublicForum,
+        EventKind.Policy,
+        EventKind.Classic,
+        EventKind.Congress
+    };
+}
+
+<h1>Students</h1>
+<p class="muted">Grade and a manual state-qualifier mark are tie-break and bonus fields. Section imports can also mark a qualifier.</p>
+@if (!string.IsNullOrEmpty(Model.Message))
+{
+    <p>@Model.Message</p>
+}
+
+<h2>Head-to-head</h2>
+<form method="post" asp-page-handler="HeadToHead" class="stack">
+    <label>Winner student id <input name="winnerId" type="number" required /></label>
+    <label>Loser student id <input name="loserId" type="number" required /></label>
+    <button type="submit">Add result</button>
+</form>
+<ul>
+@foreach (var result in Model.HeadToHead)
+{
+    <li>
+        @result.WinnerName beat @result.LoserName
+        <form method="post" asp-page-handler="DeleteHeadToHead" class="stack">
+            <input type="hidden" name="winnerId" value="@result.WinnerStudentId" />
+            <input type="hidden" name="loserId" value="@result.LoserStudentId" />
+            <button type="submit">Remove</button>
+        </form>
+    </li>
+}
+</ul>
+
+<table>
+    <thead>
+        <tr><th>Id</th><th>Student</th><th>School</th><th>Grade</th><th>State qualifier</th><th></th></tr>
+    </thead>
+    <tbody>
+    @foreach (var student in Model.Students)
+    {
+        <tr>
+            <td>@student.Id</td>
+            <td>@student.DisplayName</td>
+            <td>@student.SchoolName</td>
+            <td colspan="3">
+                <form method="post" asp-page-handler="Save" class="stack">
+                    <input type="hidden" name="id" value="@student.Id" />
+                    <input name="grade" type="number" min="9" max="12" value="@student.Grade" />
+                    @foreach (var kind in events)
+                    {
+                        var manual = student.ManualEvents.Contains(kind.ToString());
+                        var section = student.SectionEvents.Contains(kind.ToString());
+                        <label>
+                            <input type="checkbox" name="qualified" value="@kind" checked="@manual" />
+                            @EventKindLabels.Display(kind)
+                            @if (section)
+                            {
+                                <span class="muted">(section)</span>
+                            }
+                        </label>
+                    }
+                    <button type="submit">Save</button>
+                </form>
+            </td>
+        </tr>
+    }
+    </tbody>
+</table>

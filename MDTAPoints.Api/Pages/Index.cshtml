@@ -1,0 +1,74 @@
+@page
+@model MDTAPoints.Api.Pages.IndexModel
+@{
+    ViewData["Title"] = "Standings";
+    var events = new[]
+    {
+        EventKind.LincolnDouglas,
+        EventKind.Classic,
+        EventKind.PublicForum,
+        EventKind.Policy,
+        EventKind.Congress
+    };
+    var eventName = EventKindLabels.Display(Model.Event);
+}
+
+<h1>MDTA Cup standings</h1>
+<p class="muted">Award eligibility requires four in-state invitationals. A student keeps the higher result when two tournaments fall in the same week. Each event has its own team award.</p>
+
+<nav class="filters">
+    @foreach (var kind in events)
+    {
+        <a class="@(kind == Model.Event ? "current" : null)" asp-page="/Index" asp-route-event="@kind">@EventKindLabels.Display(kind)</a>
+    }
+</nav>
+
+<h2>@eventName individuals</h2>
+<table>
+    <thead>
+        <tr><th>Award</th><th>Student</th><th>School</th><th>Points</th><th>Tournaments</th><th>Breakdown</th></tr>
+    </thead>
+    <tbody>
+    @foreach (var student in Model.Individuals)
+    {
+        <tr>
+            <td>@(student.Eligible ? student.AwardRank?.ToString() : "Not eligible")</td>
+            <td>@student.Name</td>
+            <td>@student.SchoolName</td>
+            <td>@student.Points</td>
+            <td>@student.TournamentCount</td>
+            <td>
+                @foreach (var line in student.Lines)
+                {
+                    <div class="@(line.Dropped ? "dropped" : "")">@(line.Dropped ? "Dropped" : line.Detail): @line.TournamentName (@line.Points)</div>
+                }
+            </td>
+        </tr>
+    }
+    </tbody>
+</table>
+
+<h2>@eventName teams</h2>
+<p class="muted">First place is the team award for this event.</p>
+<table>
+    <thead>
+        <tr><th>Place</th><th>School</th><th>Points</th><th>Tournaments</th><th>Breakdown</th></tr>
+    </thead>
+    <tbody>
+    @foreach (var school in Model.Teams)
+    {
+        <tr>
+            <td>@school.Rank</td>
+            <td>@school.SchoolName</td>
+            <td>@school.Points</td>
+            <td>@school.TournamentCount</td>
+            <td>
+                @foreach (var line in school.Lines)
+                {
+                    <div class="@(line.Dropped ? "dropped" : "")">@(line.Dropped ? "Dropped" : "Kept"): @line.TournamentName, @line.Points pts</div>
+                }
+            </td>
+        </tr>
+    }
+    </tbody>
+</table>

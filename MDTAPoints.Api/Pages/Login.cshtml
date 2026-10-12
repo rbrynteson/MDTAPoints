@@ -1,0 +1,16 @@
+@page
+@model MDTAPoints.Api.Pages.LoginModel
+@{
+    ViewData["Title"] = "Log in";
+}
+
+<h1>Log in</h1>
+@if (!string.IsNullOrEmpty(Model.Error))
+{
+    <p class="error">@Model.Error</p>
+}
+<form method="post" class="stack">
+    <label>Username <input asp-for="Username" autocomplete="username" /></label>
+    <label>Password <input asp-for="Password" type="password" autocomplete="current-password" /></label>
+    <button type="submit">Log in</button>
+</form>

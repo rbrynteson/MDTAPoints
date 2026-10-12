@@ -1,0 +1,22 @@
+@page
+@model MDTAPoints.Api.Pages.Admin.Tournaments.CreateModel
+@{
+    ViewData["Title"] = "Add tournament";
+}
+
+<h1>Add a tournament</h1>
+<p class="muted">Use this when the results are not on Tabroom. You can add names on the next page.</p>
+<form method="post" class="stack">
+    <label>Name <input asp-for="Name" required /></label>
+    <label>Start date <input asp-for="StartDate" type="date" required /></label>
+    <label>State <input asp-for="State" value="MN" /></label>
+    <label>Type
+        <select asp-for="Kind">
+            <option>Invitational</option>
+            <option>Section</option>
+            <option>State</option>
+            <option>NsdaQualifier</option>
+        </select>
+    </label>
+    <button type="submit">Create</button>
+</form>
