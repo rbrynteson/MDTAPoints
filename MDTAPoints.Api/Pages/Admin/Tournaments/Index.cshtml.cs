@@ -1,4 +1,6 @@
 using MDTAPoints.Api.Data;
+using MDTAPoints.Api.Services;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace MDTAPoints.Api.Pages.Admin.Tournaments;
@@ -19,5 +21,11 @@ public class IndexModel : PageModel
     {
         Message = message;
         Tournaments = await _database.ListTournamentsAsync(HttpContext.RequestAborted);
+    }
+
+    public async Task<IActionResult> OnGetExportAsync()
+    {
+        var tournaments = await _database.ListTournamentsAsync(HttpContext.RequestAborted);
+        return File(ExcelExports.Tournaments(tournaments), ExcelExports.ContentType, "mdta-tournaments.xlsx");
     }
 }

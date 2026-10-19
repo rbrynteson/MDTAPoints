@@ -23,6 +23,20 @@
     }
 </nav>
 
+<form method="get" asp-page-handler="Export" class="stack">
+    <input type="hidden" name="event" value="@Model.Event" />
+    <label>
+        Export to Excel
+        <select name="table">
+            <option value="individuals">@eventName individuals</option>
+            <option value="teams">@eventName teams</option>
+            <option value="both">@eventName individuals and teams</option>
+            <option value="all">All events</option>
+        </select>
+    </label>
+    <button type="submit">Download</button>
+</form>
+
 <h2>@eventName individuals</h2>
 <table>
     <thead>

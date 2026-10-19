@@ -14,6 +14,7 @@
 
 <h1>Students</h1>
 <p class="muted">Grade and a manual state-qualifier mark are tie-break and bonus fields. Section imports can also mark a qualifier.</p>
+<p><a class="button" asp-page-handler="Export">Export to Excel</a></p>
 @if (!string.IsNullOrEmpty(Model.Message))
 {
     <p>@Model.Message</p>

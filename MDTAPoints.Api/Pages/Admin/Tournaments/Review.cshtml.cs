@@ -1,4 +1,5 @@
 using MDTAPoints.Api.Data;
+using MDTAPoints.Api.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
@@ -23,6 +24,18 @@ public class ReviewModel : PageModel
     {
         await LoadAsync(id);
         return Tournament is null ? NotFound() : Page();
+    }
+
+    public async Task<IActionResult> OnGetExportAsync(int id)
+    {
+        var tournament = await _database.GetTournamentAsync(id, HttpContext.RequestAborted);
+        if (tournament is null)
+        {
+            return NotFound();
+        }
+
+        var fileName = $"mdta-{ExcelExports.FileSlug(tournament.Name)}.xlsx";
+        return File(ExcelExports.Tournament(tournament), ExcelExports.ContentType, fileName);
     }
 
     public async Task<IActionResult> OnPostSaveAsync(int id)

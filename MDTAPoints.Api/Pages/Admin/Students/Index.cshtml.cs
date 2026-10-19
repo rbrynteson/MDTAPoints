@@ -1,4 +1,5 @@
 using MDTAPoints.Api.Data;
+using MDTAPoints.Api.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
@@ -40,6 +41,13 @@ public class IndexModel : PageModel
     {
         await _database.DeleteHeadToHeadAsync(winnerId, loserId, HttpContext.RequestAborted);
         return RedirectToPage();
+    }
+
+    public async Task<IActionResult> OnGetExportAsync()
+    {
+        var students = await _database.ListStudentsAsync(HttpContext.RequestAborted);
+        var headToHead = await _database.ListHeadToHeadAsync(HttpContext.RequestAborted);
+        return File(ExcelExports.Students(students, headToHead), ExcelExports.ContentType, "mdta-students.xlsx");
     }
 
     private async Task LoadAsync()

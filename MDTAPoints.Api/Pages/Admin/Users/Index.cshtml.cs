@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using MDTAPoints.Api.Data;
+using MDTAPoints.Api.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Data.SqlClient;
@@ -30,6 +31,12 @@ public class IndexModel : PageModel
     public async Task OnGetAsync()
     {
         Users = await _database.ListUsersAsync(HttpContext.RequestAborted);
+    }
+
+    public async Task<IActionResult> OnGetExportAsync()
+    {
+        var users = await _database.ListUsersAsync(HttpContext.RequestAborted);
+        return File(ExcelExports.Users(users), ExcelExports.ContentType, "mdta-users.xlsx");
     }
 
     public async Task<IActionResult> OnPostAsync()
