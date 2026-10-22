@@ -65,6 +65,58 @@ h2 {
     margin-top: 1.6rem;
 }
 
+.table-head {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-top: 1.6rem;
+}
+
+.table-head h1,
+.table-head h2 {
+    margin: 0;
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.table-tools {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 0.45rem;
+    margin-left: auto;
+}
+
+.table-tools input[type="search"] {
+    width: 14rem;
+    max-width: 100%;
+}
+
+a.excel {
+    display: inline-flex;
+    padding: 0;
+    background: transparent;
+    line-height: 0;
+    text-decoration: none;
+    border-radius: 4px;
+}
+
+a.excel:hover {
+    filter: brightness(1.08);
+}
+
+a.excel:focus-visible {
+    outline: 2px solid #14324f;
+    outline-offset: 2px;
+}
+
+.filter-empty {
+    margin-top: 0.4rem;
+}
+
 .filters a.current {
     font-weight: 700;
     text-decoration: underline;
@@ -111,6 +163,12 @@ input, select, button, textarea {
 
 input[type="number"] {
     width: 4.5rem;
+}
+
+.place-note {
+    display: block;
+    width: 11rem;
+    margin-top: 0.25rem;
 }
 
 input[type="checkbox"] {
@@ -171,4 +229,34 @@ tr.needs-link td {
 
 .dropped {
     color: #6b5420;
+}
+
+.row-actions {
+    white-space: nowrap;
+}
+
+.row-actions .button {
+    padding: 0.2rem 0.55rem;
+}
+
+.row-actions a + a {
+    margin-left: 0.8rem;
+}
+
+.rules-title {
+    margin: 0.8rem 0 0.3rem;
+    font-weight: 700;
+}
+
+.rules {
+    margin: 0.2rem 0 1rem;
+    padding-left: 1.25rem;
+}
+
+.rules li + li {
+    margin-top: 0.25rem;
+}
+
+.kept-lines {
+    white-space: pre-line;
 }

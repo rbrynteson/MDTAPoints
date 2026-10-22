@@ -1,0 +1,81 @@
+@page
+@model MDTAPoints.Api.Pages.Tournaments.IndexModel
+@{
+    ViewData["Title"] = "Tournaments";
+    var signedIn = User.Identity?.IsAuthenticated == true;
+}
+
+<div class="table-head">
+    <h1>Tournaments</h1>
+    <div class="table-tools">
+        <input type="search" data-filter="tournaments" placeholder="Tournament" aria-label="Search tournaments" />
+        <a class="excel" asp-page="/Tournaments/Index" asp-page-handler="Export" title="Download Excel" aria-label="Download tournaments as Excel">
+            <svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true">
+                <rect width="24" height="24" rx="4" fill="#217346" />
+                <path fill="#fff" d="M6.6 6.4h3.2l2.2 3.5 2.2-3.5h3.2L13.4 12l4.1 5.6h-3.3l-2.2-3.4-2.2 3.4H6.5L10.6 12z" />
+            </svg>
+        </a>
+    </div>
+</div>
+<p class="muted">Open a tournament to see each event, how that field scores, and the Cup points earned there.</p>
+@if (signedIn)
+{
+    <p>
+        <a class="button" asp-page="/Admin/Tournaments/Import">Import from Tabroom</a>
+        <a class="button" asp-page="/Admin/Tournaments/Create">Add a tournament</a>
+    </p>
+}
+@if (!string.IsNullOrEmpty(Model.Message))
+{
+    <p>@Model.Message</p>
+}
+<table data-table="tournaments">
+    <thead>
+        <tr><th>Date</th><th>Name</th><th>Type</th><th>Status</th><th></th></tr>
+    </thead>
+    <tbody>
+    @foreach (var tournament in Model.Tournaments)
+    {
+        <tr data-search="@tournament.Name @tournament.Kind @TournamentKindLabels.Display(tournament.Kind) @tournament.Status">
+            <td>@tournament.StartDate.ToString("yyyy-MM-dd")</td>
+            <td><a asp-page="/Tournaments/Results" asp-route-id="@tournament.Id">@tournament.Name</a></td>
+            <td>@TournamentKindLabels.Display(tournament.Kind)</td>
+            <td>@tournament.Status</td>
+            <td class="row-actions">
+                <a class="button" asp-page="/Tournaments/Results" asp-route-id="@tournament.Id">Results</a>
+                @if (signedIn)
+                {
+                    <a class="button" asp-page="/Admin/Tournaments/Review" asp-route-id="@tournament.Id">Review</a>
+                }
+            </td>
+        </tr>
+    }
+    </tbody>
+</table>
+<p class="muted filter-empty" data-empty="tournaments" hidden>No matching tournaments.</p>
+
+<script>
+    document.querySelectorAll("[data-filter]").forEach(function (input) {
+        var table = document.querySelector('table[data-table="' + input.dataset.filter + '"]');
+        var empty = document.querySelector('[data-empty="' + input.dataset.filter + '"]');
+        if (!table || !table.tBodies[0]) {
+            return;
+        }
+        var rows = Array.prototype.slice.call(table.tBodies[0].rows);
+        input.addEventListener("input", function () {
+            var terms = input.value.trim().toLowerCase().split(/\s+/).filter(Boolean);
+            var shown = 0;
+            rows.forEach(function (row) {
+                var haystack = (row.dataset.search || "").toLowerCase();
+                var match = terms.every(function (term) { return haystack.indexOf(term) !== -1; });
+                row.hidden = !match;
+                if (match) {
+                    shown++;
+                }
+            });
+            if (empty) {
+                empty.hidden = terms.length === 0 || shown > 0;
+            }
+        });
+    });
+</script>

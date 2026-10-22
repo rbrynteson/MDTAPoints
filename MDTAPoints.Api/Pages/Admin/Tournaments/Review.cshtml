@@ -17,7 +17,10 @@ else
 {
     <h1>@tournament.Name</h1>
     <p class="muted">@tournament.StartDate.ToString("MMMM d, yyyy") · @tournament.Status · @(tournament.InState ? "Minnesota" : tournament.StateCode)</p>
-    <p><a class="button" asp-page-handler="Export" asp-route-id="@tournament.Id">Export to Excel</a></p>
+    <p>
+        <a class="button" asp-page="/Tournaments/Results" asp-route-id="@tournament.Id">Results</a>
+        <a class="button" asp-page-handler="Export" asp-route-id="@tournament.Id">Export to Excel</a>
+    </p>
     @if (!string.IsNullOrEmpty(Model.Error))
     {
         <p class="error">@Model.Error</p>
@@ -30,6 +33,7 @@ else
     {
         <p class="error">@namesToFix @(namesToFix == 1 ? "name still needs" : "names still need") a choice before publishing. The highlighted rows are marked Possible. Pick the matching student, or New student, then publish.</p>
     }
+    <p class="muted">Change a place when Tabroom posted the wrong order, such as a hidden semifinal. Cup points and the average-place tiebreaker use the place you save. Add a short note so the correction stays visible next to the Tabroom place. Semis, finals, and elim wins stay on the checkboxes.</p>
 
     <form method="post">
         <label>Type
@@ -68,7 +72,14 @@ else
                     {
                         var needsChoice = entry.Competitors.Any(competitor => competitor.LinkStatus == "Possible");
                         <tr class="@(needsChoice ? "needs-link" : null)">
-                            <td>@entry.Place</td>
+                            <td class="place">
+                                <input name="place_@entry.Id" type="number" min="1" required value="@entry.Place" aria-label="Place for @entry.EntryName" />
+                                @if (entry.TabroomPlace is int posted && posted != entry.Place)
+                                {
+                                    <div class="muted">Tabroom posted @posted</div>
+                                }
+                                <input class="place-note" name="note_@entry.Id" type="text" maxlength="400" value="@entry.PlaceNote" placeholder="Correction note" aria-label="Place note for @entry.EntryName" />
+                            </td>
                             <td>@entry.EntryName</td>
                             <td>@entry.SchoolName</td>
                             <td>

@@ -4,16 +4,16 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>@ViewData["Title"] - MDTA Cup</title>
-    <link rel="stylesheet" href="~/site.css" />
+    <link rel="stylesheet" href="~/site.css" asp-append-version="true" />
 </head>
 <body>
     <header>
         <a class="brand" asp-page="/Index">MDTA Cup</a>
         <nav>
             <a asp-page="/Index">Standings</a>
+            <a asp-page="/Tournaments/Index">Tournaments</a>
             @if (User.Identity?.IsAuthenticated == true)
             {
-                <a asp-page="/Admin/Tournaments/Index">Tournaments</a>
                 <a asp-page="/Admin/Students/Index">Students</a>
                 <a asp-page="/Admin/Users/Index">Users</a>
                 <form method="post" asp-page="/Logout">

@@ -135,7 +135,7 @@ public static class CupScorer
 
         if (!request.HasFinalSession)
         {
-            reasons.Add("No Super Congress");
+            reasons.Add("No finals");
             return points;
         }
 
@@ -144,20 +144,20 @@ public static class CupScorer
         {
             points++;
             reasons.Add(request.ReachedFinals
-                ? "Advanced to Super Congress"
+                ? "Advanced to finals"
                 : "Advanced to semifinals");
         }
 
         if (request.ReachedFinals && request.Place is >= 1 and <= 6)
         {
             points++;
-            reasons.Add("Finished 1st through 6th in Super Congress");
+            reasons.Add("Finished 1st through 6th in finals");
         }
 
         if (request.ReachedFinals && request.Place == 1)
         {
             points++;
-            reasons.Add("Placed first in Super Congress");
+            reasons.Add("Placed first in finals");
         }
 
         return points;

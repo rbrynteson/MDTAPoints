@@ -146,11 +146,37 @@ public static class ExcelExports
                 SetMultiline(sheet.Cell(row, 4), string.Join("\n", entry.Competitors.Select(competitor => $"{competitor.LinkStatus}: {competitor.RawName}")));
                 sheet.Cell(row, 5).Value = entry.ElimWins;
                 sheet.Cell(row, 6).Value = Flags(entry);
+                if (entry.TabroomPlace is int posted)
+                {
+                    sheet.Cell(row, 7).Value = posted;
+                }
+
+                sheet.Cell(row, 8).Value = entry.PlaceNote;
             }
 
             Finish(sheet);
         }
 
+        return Save(workbook);
+    }
+
+    public static byte[] EventResults(string eventName, IReadOnlyList<TournamentResultRow> rows)
+    {
+        using var workbook = new XLWorkbook();
+        var sheet = AddSheet(workbook, string.IsNullOrWhiteSpace(eventName) ? "Results" : eventName, new[] { "Place", "Name", "School", "Points", "Scoring", "Place note" });
+        for (var index = 0; index < rows.Count; index++)
+        {
+            var row = rows[index];
+            var line = index + 2;
+            sheet.Cell(line, 1).Value = row.Place;
+            sheet.Cell(line, 2).Value = row.Name;
+            sheet.Cell(line, 3).Value = row.SchoolName;
+            sheet.Cell(line, 4).Value = row.Points;
+            sheet.Cell(line, 5).Value = row.Scoring;
+            sheet.Cell(line, 6).Value = row.PlaceNote;
+        }
+
+        Finish(sheet);
         return Save(workbook);
     }
 
@@ -293,7 +319,7 @@ public static class ExcelExports
         return string.Join(", ", flags);
     }
 
-    private static string[] EntryHeaders() => new[] { "Place", "Entry", "School", "Names", "Elim wins", "Flags" };
+    private static string[] EntryHeaders() => new[] { "Place", "Entry", "School", "Names", "Elim wins", "Flags", "Tabroom place", "Place note" };
 
     private static EventKind[] EventOrder() => new[]
     {
@@ -337,7 +363,8 @@ public static class ExcelExports
                 "Award" or "Place" or "Id" or "Grade" or "Points" or "Elim wins" or "Winner id" or "Loser id" => 12,
                 "Tournaments" or "Type" or "Status" or "Date" => 16,
                 "Student" or "School" or "Name" or "Entry" or "Username" or "Winner" or "Loser" => 28,
-                "Breakdown" or "Names" => 56,
+                "Breakdown" or "Names" or "Scoring" => 56,
+                "Place note" => 32,
                 "Flags" => 32,
                 "Event" => 24,
                 _ => 22

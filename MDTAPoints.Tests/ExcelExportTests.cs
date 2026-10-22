@@ -106,6 +106,8 @@ public class ExcelExportTests
                         new()
                         {
                             Place = 1,
+                            TabroomPlace = 4,
+                            PlaceNote = "Hidden semis",
                             EntryName = "Ada Lovelace",
                             SchoolName = "Edina",
                             ElimWins = 3,
@@ -128,7 +130,27 @@ public class ExcelExportTests
         var sheet = workbook.Worksheet("LD Varsity");
         Assert.Equal("Linked: Ada Lovelace", sheet.Cell(2, 4).GetString());
         Assert.Equal("Finals, Qualified to state", sheet.Cell(2, 6).GetString());
+        Assert.Equal(4, sheet.Cell(2, 7).GetValue<int>());
+        Assert.Equal("Hidden semis", sheet.Cell(2, 8).GetString());
         Assert.Equal("edina-invitational", ExcelExports.FileSlug(tournament.Name));
+    }
+
+    [Fact]
+    public void Event_results_export_lists_place_name_and_points()
+    {
+        var bytes = ExcelExports.EventResults("Varsity LD", new[]
+        {
+            new TournamentResultRow(1, "Ada Lovelace", "Edina", 4, "Competed, Placed first", "Hidden semis")
+        });
+
+        using var workbook = Open(bytes);
+        var sheet = workbook.Worksheet("Varsity LD");
+        Assert.Equal(new[] { "Place", "Name", "School", "Points", "Scoring", "Place note" }, Headers(sheet));
+        Assert.Equal(1, sheet.Cell(2, 1).GetValue<int>());
+        Assert.Equal("Ada Lovelace", sheet.Cell(2, 2).GetString());
+        Assert.Equal(4, sheet.Cell(2, 4).GetValue<int>());
+        Assert.Equal("Competed, Placed first", sheet.Cell(2, 5).GetString());
+        Assert.Equal("Hidden semis", sheet.Cell(2, 6).GetString());
     }
 
     private static IndividualStanding Individual(bool eligible, int? rank, int points)

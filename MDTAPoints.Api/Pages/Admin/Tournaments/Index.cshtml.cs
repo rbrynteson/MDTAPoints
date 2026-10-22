@@ -14,14 +14,8 @@ public class IndexModel : PageModel
         _database = database;
     }
 
-    public IReadOnlyList<TournamentListItem> Tournaments { get; private set; } = Array.Empty<TournamentListItem>();
-    public string? Message { get; private set; }
-
-    public async Task OnGetAsync(string? message)
-    {
-        Message = message;
-        Tournaments = await _database.ListTournamentsAsync(HttpContext.RequestAborted);
-    }
+    public IActionResult OnGet(string? message) =>
+        RedirectToPage("/Tournaments/Index", new { message });
 
     public async Task<IActionResult> OnGetExportAsync()
     {

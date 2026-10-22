@@ -1,0 +1,31 @@
+using MDTAPoints.Api.Data;
+using MDTAPoints.Api.Services;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.RazorPages;
+
+namespace MDTAPoints.Api.Pages.Tournaments;
+
+public class IndexModel : PageModel
+{
+    private readonly CupDatabase _database;
+
+    public IndexModel(CupDatabase database)
+    {
+        _database = database;
+    }
+
+    public IReadOnlyList<TournamentListItem> Tournaments { get; private set; } = Array.Empty<TournamentListItem>();
+    public string? Message { get; private set; }
+
+    public async Task OnGetAsync(string? message)
+    {
+        Message = message;
+        Tournaments = await _database.ListTournamentsAsync(HttpContext.RequestAborted);
+    }
+
+    public async Task<IActionResult> OnGetExportAsync()
+    {
+        var tournaments = await _database.ListTournamentsAsync(HttpContext.RequestAborted);
+        return File(ExcelExports.Tournaments(tournaments), ExcelExports.ContentType, "mdta-tournaments.xlsx");
+    }
+}

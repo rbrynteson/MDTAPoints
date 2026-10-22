@@ -21,6 +21,8 @@ public sealed class EntryEdit
     public bool ReachedFinals { get; set; }
     public bool ReachedSemis { get; set; }
     public bool QualifiedToState { get; set; }
+    public int? Place { get; set; }
+    public string? PlaceNote { get; set; }
 }
 
 public sealed partial class CupDatabase
@@ -94,7 +96,7 @@ public sealed partial class CupDatabase
 
         var events = new Dictionary<int, EventRow>();
         await using (var command = new SqlCommand("""
-            SELECT Id, Name, EventKind, SchoolCount, EntryCount, BreaksToOctosOrDeeper, HasFinalSession, HasSemis, IsHouse
+            SELECT Id, Name, EventKind, SchoolCount, EntryCount, BreaksToOctosOrDeeper, HasFinalSession, HasSemis, IsHouse, CountedDivision
             FROM dbo.Events WHERE TournamentId = @Id ORDER BY Name
             """, connection))
         {
@@ -112,7 +114,8 @@ public sealed partial class CupDatabase
                     BreaksToOctosOrDeeper = reader.GetBoolean(5),
                     HasFinalSession = reader.GetBoolean(6),
                     HasSemis = reader.GetBoolean(7),
-                    IsHouse = reader.GetBoolean(8)
+                    IsHouse = reader.GetBoolean(8),
+                    CountedDivision = reader.GetBoolean(9)
                 };
                 events.Add(row.Id, row);
             }
@@ -123,7 +126,8 @@ public sealed partial class CupDatabase
         {
             await using var command = new SqlCommand("""
                 SELECT en.Id, en.EventId, en.EntryName, en.SchoolId, s.Name, en.Place, en.IsPrelim,
-                       en.ReachedElims, en.ElimWins, en.ReachedFinals, en.ReachedSemis, en.QualifiedToState
+                       en.ReachedElims, en.ElimWins, en.ReachedFinals, en.ReachedSemis, en.QualifiedToState,
+                       en.TabroomPlace, en.PlaceNote
                 FROM dbo.Entries en
                 INNER JOIN dbo.Schools s ON s.Id = en.SchoolId
                 INNER JOIN dbo.Events e ON e.Id = en.EventId
@@ -146,7 +150,9 @@ public sealed partial class CupDatabase
                     ElimWins = reader.GetInt32(8),
                     ReachedFinals = reader.GetBoolean(9),
                     ReachedSemis = reader.GetBoolean(10),
-                    QualifiedToState = reader.GetBoolean(11)
+                    QualifiedToState = reader.GetBoolean(11),
+                    TabroomPlace = reader.IsDBNull(12) ? null : reader.GetInt32(12),
+                    PlaceNote = reader.IsDBNull(13) ? null : reader.GetString(13)
                 };
                 entries.Add(row.Id, row);
                 events[reader.GetInt32(1)].Entries.Add(row);
@@ -292,7 +298,7 @@ public sealed partial class CupDatabase
         var schoolId = await FindOrCreateSchoolAsync(connection, transaction, null, schoolName, cancellationToken);
         var known = await LoadKnownStudentsAsync(connection, transaction, cancellationToken);
         var names = NameNormalizer.SplitCompetitors(competitorNames);
-        var entryId = await InsertEntryRowAsync(connection, transaction, eventId, schoolId, competitorNames, null, place, prelim, !prelim, elimWins, reachedFinals, reachedSemis, qualified, cancellationToken);
+        var entryId = await InsertEntryRowAsync(connection, transaction, eventId, schoolId, competitorNames, null, place, null, prelim, !prelim, elimWins, reachedFinals, reachedSemis, qualified, cancellationToken);
         foreach (var name in names)
         {
             await InsertCompetitorAsync(connection, transaction, entryId, schoolId, name, known, cancellationToken);
@@ -331,10 +337,18 @@ public sealed partial class CupDatabase
 
         foreach (var (entryId, entry) in update.Entries)
         {
+            var correctPlace = entry.Place is >= 1;
+            var note = string.IsNullOrWhiteSpace(entry.PlaceNote) ? null : entry.PlaceNote.Trim();
+            if (note is { Length: > 400 })
+            {
+                note = note[..400];
+            }
             await using var command = new SqlCommand("""
                 UPDATE dbo.Entries
                 SET ElimWins = @ElimWins, ReachedElims = @ReachedElims, ReachedFinals = @ReachedFinals,
-                    ReachedSemis = @ReachedSemis, QualifiedToState = @Qualified
+                    ReachedSemis = @ReachedSemis, QualifiedToState = @Qualified,
+                    Place = CASE WHEN @SetPlace = 1 THEN @Place ELSE Place END,
+                    PlaceNote = CASE WHEN @SetPlace = 1 THEN @PlaceNote ELSE PlaceNote END
                 WHERE Id = @Id AND EventId IN (SELECT Id FROM dbo.Events WHERE TournamentId = @TournamentId)
                 """, connection, transaction);
             command.Parameters.AddWithValue("@ElimWins", Math.Max(0, entry.ElimWins));
@@ -342,6 +356,9 @@ public sealed partial class CupDatabase
             command.Parameters.AddWithValue("@ReachedFinals", entry.ReachedFinals);
             command.Parameters.AddWithValue("@ReachedSemis", entry.ReachedSemis);
             command.Parameters.AddWithValue("@Qualified", entry.QualifiedToState);
+            command.Parameters.AddWithValue("@SetPlace", correctPlace ? 1 : 0);
+            command.Parameters.AddWithValue("@Place", correctPlace ? entry.Place!.Value : 0);
+            command.Parameters.AddWithValue("@PlaceNote", (object?)note ?? DBNull.Value);
             command.Parameters.AddWithValue("@Id", entryId);
             command.Parameters.AddWithValue("@TournamentId", tournamentId);
             await command.ExecuteNonQueryAsync(cancellationToken);
@@ -509,6 +526,7 @@ public sealed partial class CupDatabase
                 entry.EntryName,
                 entry.TabroomEntryId,
                 entry.Place,
+                entry.Place,
                 entry.IsPrelim,
                 entry.ReachedElims,
                 entry.ElimWins,
@@ -603,6 +621,7 @@ public sealed partial class CupDatabase
         string entryName,
         int? tabroomEntryId,
         int place,
+        int? tabroomPlace,
         bool prelim,
         bool reachedElims,
         int elimWins,
@@ -613,15 +632,16 @@ public sealed partial class CupDatabase
     {
         await using var command = new SqlCommand("""
             INSERT INTO dbo.Entries
-                (EventId, TabroomEntryId, EntryName, SchoolId, Place, IsPrelim, ReachedElims, ElimWins, ReachedFinals, ReachedSemis, QualifiedToState)
+                (EventId, TabroomEntryId, EntryName, SchoolId, Place, TabroomPlace, IsPrelim, ReachedElims, ElimWins, ReachedFinals, ReachedSemis, QualifiedToState)
             OUTPUT INSERTED.Id
-            VALUES (@EventId, @TabroomEntryId, @EntryName, @SchoolId, @Place, @Prelim, @ReachedElims, @ElimWins, @ReachedFinals, @ReachedSemis, @Qualified)
+            VALUES (@EventId, @TabroomEntryId, @EntryName, @SchoolId, @Place, @TabroomPlace, @Prelim, @ReachedElims, @ElimWins, @ReachedFinals, @ReachedSemis, @Qualified)
             """, connection, transaction);
         command.Parameters.AddWithValue("@EventId", eventId);
         command.Parameters.AddWithValue("@TabroomEntryId", (object?)tabroomEntryId ?? DBNull.Value);
         command.Parameters.AddWithValue("@EntryName", entryName);
         command.Parameters.AddWithValue("@SchoolId", schoolId);
         command.Parameters.AddWithValue("@Place", place);
+        command.Parameters.AddWithValue("@TabroomPlace", (object?)tabroomPlace ?? DBNull.Value);
         command.Parameters.AddWithValue("@Prelim", prelim);
         command.Parameters.AddWithValue("@ReachedElims", reachedElims);
         command.Parameters.AddWithValue("@ElimWins", elimWins);

@@ -1,0 +1,123 @@
+@page "{id:int}"
+@using MDTAPoints.Api.Services
+@model MDTAPoints.Api.Pages.Tournaments.ResultsModel
+@{
+    ViewData["Title"] = Model.Tournament?.Name ?? "Tournament";
+    var tournament = Model.Tournament;
+    var selected = Model.Selected;
+    var signedIn = User.Identity?.IsAuthenticated == true;
+}
+
+@if (tournament is null)
+{
+    <p>That tournament was not found.</p>
+}
+else
+{
+    var published = string.Equals(tournament.Status, "Published", StringComparison.OrdinalIgnoreCase);
+    var where = tournament.InState ? "Minnesota" : string.IsNullOrWhiteSpace(tournament.StateCode) ? "Out of state" : tournament.StateCode;
+    <p><a asp-page="/Tournaments/Index">All tournaments</a></p>
+    <h1>@tournament.Name</h1>
+    <p class="muted">@tournament.StartDate.ToString("MMMM d, yyyy") · @TournamentKindLabels.Display(tournament.Kind) · @where · @tournament.Status</p>
+    @if (!published)
+    {
+        <p class="muted">These results are not published yet, so they are not included in the season standings.</p>
+    }
+    @if (!string.IsNullOrWhiteSpace(tournament.SkippedSummary))
+    {
+        <p class="muted kept-lines">Events left out: @tournament.SkippedSummary</p>
+    }
+    @if (signedIn)
+    {
+        <p><a class="button" asp-page="/Admin/Tournaments/Review" asp-route-id="@tournament.Id">Review</a></p>
+    }
+    @if (selected is null)
+    {
+        <p>This tournament has no events yet.</p>
+    }
+    else
+    {
+        var title = TournamentResults.EventTitle(selected);
+        <nav class="filters">
+            @foreach (var item in Model.Events)
+            {
+                <a class="@(item.Id == selected.Id ? "current" : null)" asp-page="/Tournaments/Results" asp-route-id="@tournament.Id" asp-route-eventId="@item.Id">@TournamentResults.EventTitle(item)</a>
+            }
+        </nav>
+
+        <div class="table-head">
+            <h2>@title</h2>
+            <div class="table-tools">
+                <input type="search" data-filter="results" placeholder="Name or school" aria-label="Search results by name or school" />
+                <a class="excel" asp-page="/Tournaments/Results" asp-page-handler="Export" asp-route-id="@tournament.Id" asp-route-eventId="@selected.Id" title="Download Excel" aria-label="Download @title results as Excel">
+                    <svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true">
+                        <rect width="24" height="24" rx="4" fill="#217346" />
+                        <path fill="#fff" d="M6.6 6.4h3.2l2.2 3.5 2.2-3.5h3.2L13.4 12l4.1 5.6h-3.3l-2.2-3.4-2.2 3.4H6.5L10.6 12z" />
+                    </svg>
+                </a>
+            </div>
+        </div>
+        <p class="muted">@selected.SchoolCount schools, @selected.EntryCount entries. Points are the Cup points earned at this tournament.</p>
+        <p class="rules-title">How this event scores</p>
+        <ul class="rules">
+            @foreach (var line in Model.Rules)
+            {
+                <li>@line</li>
+            }
+        </ul>
+        <table data-table="results">
+            <thead>
+                <tr><th>Place</th><th>Name</th><th>School</th><th>Points</th><th>Scoring</th></tr>
+            </thead>
+            <tbody>
+            @foreach (var row in Model.Rows)
+            {
+                <tr data-search="@row.Name @row.SchoolName">
+                    <td>
+                        @row.Place
+                        @if (!string.IsNullOrWhiteSpace(row.PlaceNote))
+                        {
+                            <div class="muted">@row.PlaceNote</div>
+                        }
+                    </td>
+                    <td>@row.Name</td>
+                    <td>@row.SchoolName</td>
+                    <td>@row.Points</td>
+                    <td>@row.Scoring</td>
+                </tr>
+            }
+            </tbody>
+        </table>
+        @if (Model.Rows.Count == 0)
+        {
+            <p class="muted">No entries in this event.</p>
+        }
+        <p class="muted filter-empty" data-empty="results" hidden>No matching names or schools.</p>
+
+        <script>
+            document.querySelectorAll("[data-filter]").forEach(function (input) {
+                var table = document.querySelector('table[data-table="' + input.dataset.filter + '"]');
+                var empty = document.querySelector('[data-empty="' + input.dataset.filter + '"]');
+                if (!table || !table.tBodies[0]) {
+                    return;
+                }
+                var rows = Array.prototype.slice.call(table.tBodies[0].rows);
+                input.addEventListener("input", function () {
+                    var terms = input.value.trim().toLowerCase().split(/\s+/).filter(Boolean);
+                    var shown = 0;
+                    rows.forEach(function (row) {
+                        var haystack = (row.dataset.search || "").toLowerCase();
+                        var match = terms.every(function (term) { return haystack.indexOf(term) !== -1; });
+                        row.hidden = !match;
+                        if (match) {
+                            shown++;
+                        }
+                    });
+                    if (empty) {
+                        empty.hidden = terms.length === 0 || shown > 0;
+                    }
+                });
+            });
+        </script>
+    }
+}

@@ -58,3 +58,18 @@ public static class EventKindLabels
     public static bool IsTeamEvent(EventKind kind) =>
         kind is EventKind.PublicForum or EventKind.Policy or EventKind.Classic;
 }
+
+public static class TournamentKindLabels
+{
+    public static string Display(string kind) =>
+        Enum.TryParse<TournamentKind>(kind, true, out var parsed) ? Display(parsed) : kind;
+
+    public static string Display(TournamentKind kind) => kind switch
+    {
+        TournamentKind.Invitational => "Invitational",
+        TournamentKind.Section => "Section",
+        TournamentKind.State => "State",
+        TournamentKind.NsdaQualifier => "NSDA qualifier",
+        _ => kind.ToString()
+    };
+}

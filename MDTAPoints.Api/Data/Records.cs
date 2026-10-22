@@ -30,6 +30,8 @@ public sealed class EntryRow
     public int SchoolId { get; init; }
     public string SchoolName { get; init; } = "";
     public int Place { get; init; }
+    public int? TabroomPlace { get; init; }
+    public string? PlaceNote { get; init; }
     public bool IsPrelim { get; init; }
     public bool ReachedElims { get; init; }
     public int ElimWins { get; init; }
@@ -50,8 +52,11 @@ public sealed class EventRow
     public bool HasFinalSession { get; init; }
     public bool HasSemis { get; init; }
     public bool IsHouse { get; init; }
+    public bool CountedDivision { get; init; }
     public List<EntryRow> Entries { get; init; } = new();
 }
+
+public sealed record TournamentResultRow(int Place, string Name, string SchoolName, int Points, string Scoring, string? PlaceNote);
 
 public sealed class TournamentDetail
 {

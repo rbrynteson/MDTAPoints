@@ -23,29 +23,26 @@
     }
 </nav>
 
-<form method="get" asp-page-handler="Export" class="stack">
-    <input type="hidden" name="event" value="@Model.Event" />
-    <label>
-        Export to Excel
-        <select name="table">
-            <option value="individuals">@eventName individuals</option>
-            <option value="teams">@eventName teams</option>
-            <option value="both">@eventName individuals and teams</option>
-            <option value="all">All events</option>
-        </select>
-    </label>
-    <button type="submit">Download</button>
-</form>
-
-<h2>@eventName individuals</h2>
-<table>
+<div class="table-head">
+    <h2>@eventName individuals</h2>
+    <div class="table-tools">
+        <input type="search" data-filter="individuals" placeholder="Student or school" aria-label="Search individuals by student or school" />
+        <a class="excel" asp-page="/Index" asp-page-handler="Export" asp-route-event="@Model.Event" asp-route-table="individuals" title="Download Excel" aria-label="Download @eventName individuals as Excel">
+            <svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true">
+                <rect width="24" height="24" rx="4" fill="#217346" />
+                <path fill="#fff" d="M6.6 6.4h3.2l2.2 3.5 2.2-3.5h3.2L13.4 12l4.1 5.6h-3.3l-2.2-3.4-2.2 3.4H6.5L10.6 12z" />
+            </svg>
+        </a>
+    </div>
+</div>
+<table data-table="individuals">
     <thead>
         <tr><th>Award</th><th>Student</th><th>School</th><th>Points</th><th>Tournaments</th><th>Breakdown</th></tr>
     </thead>
     <tbody>
     @foreach (var student in Model.Individuals)
     {
-        <tr>
+        <tr data-search="@student.Name @student.SchoolName">
             <td>@(student.Eligible ? student.AwardRank?.ToString() : "Not eligible")</td>
             <td>@student.Name</td>
             <td>@student.SchoolName</td>
@@ -61,17 +58,29 @@
     }
     </tbody>
 </table>
+<p class="muted filter-empty" data-empty="individuals" hidden>No matching students or schools.</p>
 
-<h2>@eventName teams</h2>
+<div class="table-head">
+    <h2>@eventName teams</h2>
+    <div class="table-tools">
+        <input type="search" data-filter="teams" placeholder="School" aria-label="Search teams by school" />
+        <a class="excel" asp-page="/Index" asp-page-handler="Export" asp-route-event="@Model.Event" asp-route-table="teams" title="Download Excel" aria-label="Download @eventName teams as Excel">
+            <svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true">
+                <rect width="24" height="24" rx="4" fill="#217346" />
+                <path fill="#fff" d="M6.6 6.4h3.2l2.2 3.5 2.2-3.5h3.2L13.4 12l4.1 5.6h-3.3l-2.2-3.4-2.2 3.4H6.5L10.6 12z" />
+            </svg>
+        </a>
+    </div>
+</div>
 <p class="muted">First place is the team award for this event.</p>
-<table>
+<table data-table="teams">
     <thead>
         <tr><th>Place</th><th>School</th><th>Points</th><th>Tournaments</th><th>Breakdown</th></tr>
     </thead>
     <tbody>
     @foreach (var school in Model.Teams)
     {
-        <tr>
+        <tr data-search="@school.SchoolName">
             <td>@school.Rank</td>
             <td>@school.SchoolName</td>
             <td>@school.Points</td>
@@ -86,3 +95,27 @@
     }
     </tbody>
 </table>
+<p class="muted filter-empty" data-empty="teams" hidden>No matching schools.</p>
+
+<script>
+    document.querySelectorAll("[data-filter]").forEach(function (input) {
+        var table = document.querySelector('table[data-table="' + input.dataset.filter + '"]');
+        var empty = document.querySelector('[data-empty="' + input.dataset.filter + '"]');
+        var rows = Array.prototype.slice.call(table.tBodies[0].rows);
+        input.addEventListener("input", function () {
+            var terms = input.value.trim().toLowerCase().split(/\s+/).filter(Boolean);
+            var shown = 0;
+            rows.forEach(function (row) {
+                var haystack = (row.dataset.search || "").toLowerCase();
+                var match = terms.every(function (term) { return haystack.indexOf(term) !== -1; });
+                row.hidden = !match;
+                if (match) {
+                    shown++;
+                }
+            });
+            if (empty) {
+                empty.hidden = terms.length === 0 || shown > 0;
+            }
+        });
+    });
+</script>

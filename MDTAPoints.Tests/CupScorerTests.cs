@@ -59,7 +59,7 @@ public class CupScorerTests
     [InlineData(6, true, 3)]
     [InlineData(11, true, 2)]
     [InlineData(12, false, 1)]
-    public void Congress_finalists_score_from_the_super_congress(int place, bool reachedFinals, int expected)
+    public void Congress_finalists_score_from_advancing_to_finals(int place, bool reachedFinals, int expected)
     {
         var result = CupScorer.Score(Congress() with { Place = place, ReachedFinals = reachedFinals, EntryCount = 33 });
 

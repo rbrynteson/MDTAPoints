@@ -51,6 +51,6 @@ public class LoginModel : PageModel
             return Redirect(returnUrl);
         }
 
-        return RedirectToPage("/Admin/Tournaments/Index");
+        return RedirectToPage("/Tournaments/Index");
     }
 }

@@ -17,6 +17,7 @@ public class ReviewModel : PageModel
     public TournamentDetail? Tournament { get; private set; }
     public ILookup<int, SchoolStudent> Students { get; private set; } = Array.Empty<SchoolStudent>().ToLookup(student => student.SchoolId);
     public string? Error { get; private set; }
+    private string? PlaceError { get; set; }
 
     public IEnumerable<SchoolStudent> StudentsAt(int schoolId) => Students[schoolId];
 
@@ -40,13 +41,29 @@ public class ReviewModel : PageModel
 
     public async Task<IActionResult> OnPostSaveAsync(int id)
     {
-        await _database.SaveReviewAsync(id, ReadUpdate(), HttpContext.RequestAborted);
+        var update = ReadUpdate();
+        if (PlaceError is not null)
+        {
+            await LoadAsync(id);
+            Error = PlaceError;
+            return Page();
+        }
+
+        await _database.SaveReviewAsync(id, update, HttpContext.RequestAborted);
         return RedirectToPage(new { id });
     }
 
     public async Task<IActionResult> OnPostPublishAsync(int id)
     {
-        await _database.SaveReviewAsync(id, ReadUpdate(), HttpContext.RequestAborted);
+        var update = ReadUpdate();
+        if (PlaceError is not null)
+        {
+            await LoadAsync(id);
+            Error = PlaceError;
+            return Page();
+        }
+
+        await _database.SaveReviewAsync(id, update, HttpContext.RequestAborted);
         try
         {
             await _database.PublishAsync(id, HttpContext.RequestAborted);
@@ -114,6 +131,18 @@ public class ReviewModel : PageModel
                 entry.ReachedFinals = Request.Form.ContainsKey($"finalist_{entryId}");
                 entry.ReachedSemis = Request.Form.ContainsKey($"semi_{entryId}");
                 entry.QualifiedToState = Request.Form.ContainsKey($"qualified_{entryId}");
+                var rawPlace = Request.Form[$"place_{entryId}"].ToString();
+                if (int.TryParse(rawPlace, out var place) && place >= 1)
+                {
+                    entry.Place = place;
+                }
+                else if (!string.IsNullOrWhiteSpace(rawPlace))
+                {
+                    PlaceError = "Each place must be a whole number of 1 or higher.";
+                }
+
+                var note = Request.Form[$"note_{entryId}"].ToString().Trim();
+                entry.PlaceNote = note.Length == 0 ? null : note.Length <= 400 ? note : note[..400];
                 update.Entries[entryId] = entry;
             }
 
