@@ -1,5 +1,13 @@
 namespace MDTAPoints.Api.Data;
 
+public sealed class SchoolListItem
+{
+    public int Id { get; init; }
+    public string Name { get; init; } = "";
+    public bool ExcludeFromStats { get; init; }
+    public int EntryCount { get; init; }
+}
+
 public sealed class TournamentListItem
 {
     public int Id { get; init; }

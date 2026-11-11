@@ -130,6 +130,39 @@ public class StandingsCalculatorTests
     }
 
     [Fact]
+    public void Award_places_restart_for_each_event()
+    {
+        var entries = new List<SeasonEntry>();
+        foreach (var student in new[]
+        {
+            ("ada", "Ada", EventKind.LincolnDouglas, 1),
+            ("bea", "Bea", EventKind.LincolnDouglas, 13),
+            ("cy", "Cy", EventKind.Policy, 1)
+        })
+        {
+            for (var week = 1; week <= 4; week++)
+            {
+                entries.Add(DebateEntry(
+                    "t" + week,
+                    new DateOnly(2026, 9, 5).AddDays(7 * week),
+                    student.Item2,
+                    "edina",
+                    place: student.Item4,
+                    studentId: student.Item1) with { Event = student.Item3 });
+            }
+        }
+
+        var rows = StandingsCalculator.Calculate(new SeasonInput(
+            entries,
+            Array.Empty<ManualQualification>(),
+            Array.Empty<HeadToHeadResult>())).Individuals;
+
+        Assert.Equal(1, rows.Single(row => row.Name == "Ada").AwardRank);
+        Assert.Equal(2, rows.Single(row => row.Name == "Bea").AwardRank);
+        Assert.Equal(1, rows.Single(row => row.Name == "Cy").AwardRank);
+    }
+
+    [Fact]
     public void Each_event_keeps_its_own_team_winner()
     {
         var entries = new List<SeasonEntry>

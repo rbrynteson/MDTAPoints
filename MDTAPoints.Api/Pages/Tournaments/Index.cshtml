@@ -20,10 +20,10 @@
 <p class="muted">Open a tournament to see each event, how that field scores, and the Cup points earned there.</p>
 @if (signedIn)
 {
-    <p>
+    <div class="filters">
         <a class="button" asp-page="/Admin/Tournaments/Import">Import from Tabroom</a>
         <a class="button" asp-page="/Admin/Tournaments/Create">Add a tournament</a>
-    </p>
+    </div>
 }
 @if (!string.IsNullOrEmpty(Model.Message))
 {
@@ -36,11 +36,18 @@
     <tbody>
     @foreach (var tournament in Model.Tournaments)
     {
-        <tr data-search="@tournament.Name @tournament.Kind @TournamentKindLabels.Display(tournament.Kind) @tournament.Status">
+        var waitingNames = signedIn ? Model.NamesWaiting(tournament.Id) : 0;
+        <tr data-search="@tournament.Name @tournament.Kind @TournamentKindLabels.Display(tournament.Kind) @tournament.Status @(waitingNames > 0 ? "review" : null)">
             <td>@tournament.StartDate.ToString("yyyy-MM-dd")</td>
             <td><a asp-page="/Tournaments/Results" asp-route-id="@tournament.Id">@tournament.Name</a></td>
             <td>@TournamentKindLabels.Display(tournament.Kind)</td>
-            <td>@tournament.Status</td>
+            <td>
+                @tournament.Status
+                @if (waitingNames > 0)
+                {
+                    <div class="name-fix">Needs review</div>
+                }
+            </td>
             <td class="row-actions">
                 <a class="button" asp-page="/Tournaments/Results" asp-route-id="@tournament.Id">Results</a>
                 @if (signedIn)

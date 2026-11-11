@@ -223,6 +223,7 @@ public sealed partial class CupDatabase
             INNER JOIN dbo.Students st ON st.Id = c.StudentId
             INNER JOIN dbo.Schools ss ON ss.Id = st.SchoolId
             WHERE t.Status = N'Published' AND e.CountedDivision = 1
+              AND s.ExcludeFromStats = 0 AND ss.ExcludeFromStats = 0
             ORDER BY en.Id, c.Id
             """;
         var grouped = new Dictionary<int, MutableEntry>();

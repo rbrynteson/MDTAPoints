@@ -19,14 +19,20 @@ var info = TabroomParser.ParseTournament(await client.GetTournamentJsonAsync(tou
 var summaries = TabroomParser.ParseEvents(await client.GetEventsJsonAsync(tournamentId, CancellationToken.None));
 
 Console.WriteLine($"{info.Name}  {info.StartDate:yyyy-MM-dd}  {info.SuggestedKind}");
-foreach (var summary in summaries.Where(item => item.ShouldImport && item.ResultSetId.HasValue))
+foreach (var summary in summaries.Where(item => item.ShouldImport && item.ResultSetIds.Count > 0))
 {
-    var parsed = TabroomParser.ParseResultSet(await client.GetResultJsonAsync(tournamentId, summary.ResultSetId!.Value, CancellationToken.None));
+    var resultJson = new List<string>();
+    foreach (var setId in summary.ResultSetIds)
+    {
+        resultJson.Add(await client.GetResultJsonAsync(tournamentId, setId, CancellationToken.None));
+    }
+
+    var parsed = TabroomParser.ParseResultSets(resultJson);
     var kind = Enum.Parse<TournamentKind>(info.SuggestedKind);
     var eventKind = Enum.Parse<EventKind>(parsed.EventKind);
     Console.WriteLine();
     Console.WriteLine($"{parsed.Name}  {parsed.SchoolCount} schools, {parsed.EntryCount} entries");
-    foreach (var entry in parsed.Entries.OrderBy(item => item.Place))
+    foreach (var entry in parsed.Entries.Where(item => TabroomParser.IncludeSchool(item.SchoolState)).OrderBy(item => item.Place))
     {
         var score = CupScorer.Score(new ScoreRequest(
             kind,

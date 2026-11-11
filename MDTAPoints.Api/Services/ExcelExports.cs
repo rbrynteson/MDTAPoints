@@ -108,6 +108,134 @@ public static class ExcelExports
         return Save(workbook);
     }
 
+    public static byte[] Analytics(ParticipationReport report, WeekendFieldReport weekends)
+    {
+        using var workbook = new XLWorkbook();
+        var events = AddSheet(workbook, "Events", new[] { "Event", "Schools", "Count", "Counted as" });
+        for (var index = 0; index < report.Events.Count; index++)
+        {
+            var row = report.Events[index];
+            var line = index + 2;
+            events.Cell(line, 1).Value = EventKindLabels.Display(row.Event);
+            events.Cell(line, 2).Value = row.SchoolCount;
+            events.Cell(line, 3).Value = row.Count;
+            events.Cell(line, 4).Value = ParticipationAnalytics.CountLabel(row.CountEntries);
+        }
+
+        Finish(events);
+
+        var headers = new List<string> { "School" };
+        headers.AddRange(ParticipationAnalytics.EventOrder.Select(EventKindLabels.Display));
+        headers.Add("Total");
+        var schools = AddSheet(workbook, "Schools", headers);
+        for (var index = 0; index < report.Schools.Count; index++)
+        {
+            var school = report.Schools[index];
+            var line = index + 2;
+            schools.Cell(line, 1).Value = school.SchoolName;
+            for (var column = 0; column < ParticipationAnalytics.EventOrder.Length; column++)
+            {
+                schools.Cell(line, column + 2).Value = school.Counts[ParticipationAnalytics.EventOrder[column]];
+            }
+
+            schools.Cell(line, ParticipationAnalytics.EventOrder.Length + 2).Value = school.Total;
+        }
+
+        var totalLine = report.Schools.Count + 2;
+        schools.Cell(totalLine, 1).Value = ParticipationAnalytics.SchoolsAndStudents(report.Schools.Count, report.StudentCount);
+        schools.Cell(totalLine, 1).Style.Font.Bold = true;
+        for (var column = 0; column < ParticipationAnalytics.EventOrder.Length; column++)
+        {
+            var kind = ParticipationAnalytics.EventOrder[column];
+            var cell = schools.Cell(totalLine, column + 2);
+            cell.Value = report.Schools.Sum(school => school.Counts[kind]);
+            cell.Style.Font.Bold = true;
+        }
+
+        var totalCell = schools.Cell(totalLine, ParticipationAnalytics.EventOrder.Length + 2);
+        totalCell.Value = report.Schools.Sum(school => school.Total);
+        totalCell.Style.Font.Bold = true;
+        Finish(schools);
+        if (report.Schools.Count > 0)
+        {
+            schools.Range(1, 1, report.Schools.Count + 1, headers.Count).SetAutoFilter();
+        }
+
+        WriteWeekendAverages(workbook, weekends);
+        WriteWeekends(workbook, weekends);
+        return Save(workbook);
+    }
+
+    private static void WriteWeekendAverages(XLWorkbook workbook, WeekendFieldReport weekends)
+    {
+        var headers = new List<string> { "Event" };
+        foreach (var division in WeekendFieldAnalytics.DivisionOrder)
+        {
+            var label = WeekendFieldAnalytics.DivisionLabel(division);
+            headers.Add(label);
+            headers.Add(label + " weekends");
+        }
+
+        var sheet = AddSheet(workbook, "Weekend averages", headers);
+        for (var index = 0; index < ParticipationAnalytics.EventOrder.Length; index++)
+        {
+            var kind = ParticipationAnalytics.EventOrder[index];
+            var line = index + 2;
+            sheet.Cell(line, 1).Value = EventKindLabels.Display(kind);
+            var column = 2;
+            foreach (var division in WeekendFieldAnalytics.DivisionOrder)
+            {
+                var average = weekends.Average(kind, division);
+                if (average.Weekends > 0)
+                {
+                    sheet.Cell(line, column).Value = Math.Round(average.Average, 1, MidpointRounding.AwayFromZero);
+                    sheet.Cell(line, column + 1).Value = average.Weekends;
+                }
+
+                column += 2;
+            }
+        }
+
+        Finish(sheet);
+    }
+
+    private static void WriteWeekends(XLWorkbook workbook, WeekendFieldReport weekends)
+    {
+        var headers = new List<string> { "Weekend", "Sites" };
+        foreach (var kind in ParticipationAnalytics.EventOrder)
+        {
+            foreach (var division in WeekendFieldAnalytics.DivisionOrder)
+            {
+                headers.Add(EventKindLabels.Short(kind) + " " + WeekendFieldAnalytics.DivisionLabel(division));
+            }
+        }
+
+        var sheet = AddSheet(workbook, "Weekends", headers);
+        for (var index = 0; index < weekends.Weekends.Count; index++)
+        {
+            var weekend = weekends.Weekends[index];
+            var line = index + 2;
+            sheet.Cell(line, 1).Value = weekend.Dates;
+            sheet.Cell(line, 2).Value = string.Join(", ", weekend.Tournaments);
+            var column = 3;
+            foreach (var kind in ParticipationAnalytics.EventOrder)
+            {
+                foreach (var division in WeekendFieldAnalytics.DivisionOrder)
+                {
+                    var count = weekend.Count(kind, division);
+                    if (count > 0)
+                    {
+                        sheet.Cell(line, column).Value = count;
+                    }
+
+                    column++;
+                }
+            }
+        }
+
+        Finish(sheet);
+    }
+
     public static byte[] Users(IReadOnlyList<AppUser> users)
     {
         using var workbook = new XLWorkbook();
@@ -362,6 +490,7 @@ public static class ExcelExports
             {
                 "Award" or "Place" or "Id" or "Grade" or "Points" or "Elim wins" or "Winner id" or "Loser id" => 12,
                 "Tournaments" or "Type" or "Status" or "Date" => 16,
+                "Sites" => 42,
                 "Student" or "School" or "Name" or "Entry" or "Username" or "Winner" or "Loser" => 28,
                 "Breakdown" or "Names" or "Scoring" => 56,
                 "Place note" => 32,

@@ -12,6 +12,8 @@
         <nav>
             <a asp-page="/Index">Standings</a>
             <a asp-page="/Tournaments/Index">Tournaments</a>
+            <a asp-page="/Analytics/Index">Analytics</a>
+            <a asp-page="/Schools/Index">Schools</a>
             @if (User.Identity?.IsAuthenticated == true)
             {
                 <a asp-page="/Admin/Students/Index">Students</a>

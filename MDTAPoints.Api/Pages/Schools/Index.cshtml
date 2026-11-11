@@ -1,0 +1,72 @@
+@page
+@model MDTAPoints.Api.Pages.Schools.IndexModel
+@{
+    ViewData["Title"] = "Schools";
+    var signedIn = User.Identity?.IsAuthenticated == true;
+}
+
+<div class="table-head">
+    <h1>Schools</h1>
+    <div class="table-tools">
+        <input type="search" data-filter="schools" placeholder="School" aria-label="Search schools" />
+    </div>
+</div>
+<p class="muted">Every school imported with a tournament is listed here. A school removed from stats stays on that tournament's results, and is left out of standings and analytics.</p>
+<table data-table="schools">
+    <thead>
+        <tr>
+            <th>School</th>
+            <th class="num">Entries</th>
+            <th>Stats</th>
+            @if (signedIn)
+            {
+                <th></th>
+            }
+        </tr>
+    </thead>
+    <tbody>
+    @foreach (var school in Model.Schools)
+    {
+        <tr data-search="@school.Name">
+            <td>@school.Name</td>
+            <td class="num">@school.EntryCount</td>
+            <td>@(school.ExcludeFromStats ? "Not in stats" : "In stats")</td>
+            @if (signedIn)
+            {
+                <td class="row-actions"><a class="button" asp-page="/Schools/Manage" asp-route-id="@school.Id">Manage</a></td>
+            }
+        </tr>
+    }
+    </tbody>
+</table>
+@if (Model.Schools.Count == 0)
+{
+    <p class="muted">No schools yet.</p>
+}
+<p class="muted filter-empty" data-empty="schools" hidden>No matching schools.</p>
+
+<script>
+    document.querySelectorAll("[data-filter]").forEach(function (input) {
+        var table = document.querySelector('table[data-table="' + input.dataset.filter + '"]');
+        var empty = document.querySelector('[data-empty="' + input.dataset.filter + '"]');
+        if (!table || !table.tBodies[0]) {
+            return;
+        }
+        var rows = Array.prototype.slice.call(table.tBodies[0].rows);
+        input.addEventListener("input", function () {
+            var terms = input.value.trim().toLowerCase().split(/\s+/).filter(Boolean);
+            var shown = 0;
+            rows.forEach(function (row) {
+                var haystack = (row.dataset.search || "").toLowerCase();
+                var match = terms.every(function (term) { return haystack.indexOf(term) !== -1; });
+                row.hidden = !match;
+                if (match) {
+                    shown++;
+                }
+            });
+            if (empty) {
+                empty.hidden = terms.length === 0 || shown > 0;
+            }
+        });
+    });
+</script>

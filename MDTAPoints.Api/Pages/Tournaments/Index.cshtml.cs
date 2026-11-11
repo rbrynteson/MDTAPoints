@@ -15,12 +15,20 @@ public class IndexModel : PageModel
     }
 
     public IReadOnlyList<TournamentListItem> Tournaments { get; private set; } = Array.Empty<TournamentListItem>();
+    public IReadOnlyDictionary<int, int> NamesToReview { get; private set; } = new Dictionary<int, int>();
     public string? Message { get; private set; }
+
+    public int NamesWaiting(int tournamentId) =>
+        NamesToReview.TryGetValue(tournamentId, out var count) ? count : 0;
 
     public async Task OnGetAsync(string? message)
     {
         Message = message;
         Tournaments = await _database.ListTournamentsAsync(HttpContext.RequestAborted);
+        if (User.Identity?.IsAuthenticated == true)
+        {
+            NamesToReview = await _database.PossibleNameCountsAsync(HttpContext.RequestAborted);
+        }
     }
 
     public async Task<IActionResult> OnGetExportAsync()

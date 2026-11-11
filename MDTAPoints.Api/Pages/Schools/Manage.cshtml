@@ -1,0 +1,33 @@
+@page "{id:int}"
+@model MDTAPoints.Api.Pages.Schools.ManageModel
+@{
+    ViewData["Title"] = Model.School?.Name ?? "School";
+    var school = Model.School;
+}
+
+@if (school is null)
+{
+    <p>That school was not found.</p>
+}
+else
+{
+    <p><a asp-page="/Schools/Index">All schools</a></p>
+    <h1>@school.Name</h1>
+    <p class="muted">@school.EntryCount entries. @(school.ExcludeFromStats ? "This school is not in stats or analytics." : "This school is included in stats and analytics.")</p>
+    @if (school.ExcludeFromStats)
+    {
+        <p>Putting this school back adds its students and entries to the standings and the analytics counts. Tournament results are unchanged either way.</p>
+        <form method="post">
+            <input type="hidden" name="exclude" value="false" />
+            <button type="submit">Include in stats and analytics</button>
+        </form>
+    }
+    else
+    {
+        <p>Removing this school leaves it on tournament results. Its students and entries drop out of the standings and the analytics counts. The field size already saved on each tournament stays as imported, so other schools' points do not change.</p>
+        <form method="post">
+            <input type="hidden" name="exclude" value="true" />
+            <button type="submit">Remove from stats and analytics</button>
+        </form>
+    }
+}

@@ -61,6 +61,16 @@ th {
     background: #e7eef5;
 }
 
+th.num, td.num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+tfoot th, tfoot td {
+    font-weight: 700;
+    background: #e7eef5;
+}
+
 h2 {
     margin-top: 1.6rem;
 }
@@ -225,6 +235,26 @@ tr.needs-link td {
 
 .event {
     margin-top: 1.5rem;
+    scroll-margin-top: 1rem;
+}
+
+.division-jumps {
+    margin: 0.8rem 0 1rem;
+}
+
+.division-jump {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem 0.8rem;
+    align-items: baseline;
+}
+
+.division-jump + .division-jump {
+    margin-top: 0.35rem;
+}
+
+.error a {
+    color: inherit;
 }
 
 .dropped {
@@ -259,4 +289,97 @@ tr.needs-link td {
 
 .kept-lines {
     white-space: pre-line;
+}
+
+.chart-scroll,
+.scroll-x {
+    overflow-x: auto;
+}
+
+.chart-scroll {
+    background: white;
+    padding: 0.7rem 0.6rem 0.2rem;
+    margin: 0.4rem 0 1rem;
+}
+
+.chart-scroll svg {
+    min-width: 680px;
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+.chart-scroll .grid {
+    stroke: #d5dde6;
+    stroke-width: 1;
+}
+
+.chart-scroll .axis,
+.chart-scroll .bar-value {
+    fill: #1c2430;
+    font-family: "Segoe UI", sans-serif;
+    font-size: 12px;
+}
+
+.chart-scroll .bar-value {
+    font-size: 11px;
+}
+
+.chart-scroll .novice,
+.legend i.novice {
+    fill: #8fb4d4;
+    background: #8fb4d4;
+}
+
+.chart-scroll .jv,
+.legend i.jv {
+    fill: #4f86b5;
+    background: #4f86b5;
+}
+
+.chart-scroll .varsity,
+.legend i.varsity {
+    fill: #14324f;
+    background: #14324f;
+}
+
+.legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem 1.1rem;
+    list-style: none;
+    padding: 0;
+    margin: 0 0.35rem 0.15rem;
+}
+
+.legend li {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.legend i {
+    width: 0.85rem;
+    height: 0.85rem;
+    display: inline-block;
+}
+
+td .sub {
+    display: block;
+    color: #5c6b7a;
+    font-size: 0.78rem;
+    font-weight: 400;
+}
+
+th.group {
+    text-align: center;
+}
+
+th.split,
+td.split {
+    border-left: 1px solid #d5dde6;
+}
+
+td.nowrap {
+    white-space: nowrap;
 }

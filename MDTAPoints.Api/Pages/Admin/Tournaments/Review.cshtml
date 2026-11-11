@@ -1,8 +1,12 @@
 @page "{id:int}"
+@using MDTAPoints.Api.Services
 @model MDTAPoints.Api.Pages.Admin.Tournaments.ReviewModel
 @{
     ViewData["Title"] = Model.Tournament?.Name ?? "Tournament";
     var tournament = Model.Tournament;
+    var divisions = tournament is null
+        ? Array.Empty<ReviewDivision>()
+        : ReviewModel.GroupDivisions(tournament.Events);
     var namesToFix = tournament?.Events
         .SelectMany(item => item.Entries)
         .SelectMany(entry => entry.Competitors)
@@ -34,6 +38,22 @@ else
         <p class="error">@namesToFix @(namesToFix == 1 ? "name still needs" : "names still need") a choice before publishing. The highlighted rows are marked Possible. Pick the matching student, or New student, then publish.</p>
     }
     <p class="muted">Change a place when Tabroom posted the wrong order, such as a hidden semifinal. Cup points and the average-place tiebreaker use the place you save. Add a short note so the correction stays visible next to the Tabroom place. Semis, finals, and elim wins stay on the checkboxes.</p>
+    @if (divisions.Count > 0)
+    {
+        <nav class="division-jumps" aria-label="Divisions">
+            @foreach (var group in divisions)
+            {
+                <div class="division-jump">
+                    <strong>@group.Label</strong>
+                    @foreach (var item in group.Events)
+                    {
+                        var waiting = ReviewModel.NamesToFix(item);
+                        <a href="#event-@item.Id" class="@(waiting > 0 ? "name-fix" : null)">@TournamentResults.EventTitle(item)@(waiting > 0 ? $" ({waiting})" : "")</a>
+                    }
+                </div>
+            }
+        </nav>
+    }
 
     <form method="post">
         <label>Type
@@ -52,9 +72,11 @@ else
             </select>
         </label>
 
-        @foreach (var item in tournament.Events)
+        @foreach (var group in divisions)
         {
-            <section class="event">
+            @foreach (var item in group.Events)
+            {
+            <section class="event" id="event-@item.Id">
                 <h2>@item.Name</h2>
                 <p class="muted">@item.SchoolCount schools, @item.EntryCount entries</p>
                 <input type="hidden" name="eventId" value="@item.Id" />
@@ -127,6 +149,7 @@ else
                     </tbody>
                 </table>
             </section>
+            }
         }
 
         <p>
@@ -155,5 +178,11 @@ else
         <label>Elim wins <input name="elimWins" type="number" min="0" value="0" /></label>
         <label><input type="checkbox" name="reachedFinals" /> Reached finals</label>
         <button type="submit">Add entry</button>
+    </form>
+
+    <h2>Delete tournament</h2>
+    <p class="muted">This removes the tournament and every event and result on it. Schools and students stay.</p>
+    <form method="post" asp-page-handler="Delete" onsubmit="return confirm('Delete this tournament and its results?');">
+        <button type="submit">Delete tournament</button>
     </form>
 }

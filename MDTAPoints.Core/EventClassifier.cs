@@ -35,20 +35,47 @@ public static class EventClassifier
         return null;
     }
 
-    public static bool IsCountedDivision(string eventName)
+    public static Division ClassifyDivision(string eventName, string? level = null)
     {
         var name = eventName.ToLowerInvariant();
-        if (name.Contains("novice") || name.Contains("junior varsity"))
+        var tokens = name.Split(new[] { ' ', '(', ')', '/', '-', '&' }, StringSplitOptions.RemoveEmptyEntries);
+        if (name.Contains("novice") || tokens.Contains("nov"))
         {
-            return false;
+            return Division.Novice;
         }
 
-        var tokens = name.Split(new[] { ' ', '(', ')', '/', '-' }, StringSplitOptions.RemoveEmptyEntries);
-        return !tokens.Any(token => token is "jv");
+        var hasJv = tokens.Contains("jv");
+        var hasVarsity = tokens.Contains("varsity") || tokens.Contains("var") || tokens.Contains("open");
+        // "Senate (JV-Varsity)" is one upper division. "Junior Varsity Public Forum" is not.
+        if (hasJv && hasVarsity)
+        {
+            return Division.Varsity;
+        }
+
+        if (hasJv || name.Contains("junior varsity"))
+        {
+            return Division.JuniorVarsity;
+        }
+
+        var value = level?.Trim().ToLowerInvariant();
+        if (value is "novice" or "beginner")
+        {
+            return Division.Novice;
+        }
+
+        if (value is "jv" or "junior")
+        {
+            return Division.JuniorVarsity;
+        }
+
+        return Division.Varsity;
     }
 
-    public static bool ShouldImport(string eventName, int? nsdaCategory, string? type) =>
-        Classify(eventName, nsdaCategory, type) is not null && IsCountedDivision(eventName);
+    public static bool IsCountedDivision(string eventName, string? level = null) =>
+        ClassifyDivision(eventName, level) == Division.Varsity;
+
+    public static bool ShouldImport(string eventName, int? nsdaCategory, string? type, string? level = null) =>
+        Classify(eventName, nsdaCategory, type) is not null && IsCountedDivision(eventName, level);
 
     public static bool IsHouse(string eventName) =>
         eventName.Contains("house", StringComparison.OrdinalIgnoreCase);

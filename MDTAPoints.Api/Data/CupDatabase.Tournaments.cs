@@ -55,6 +55,28 @@ public sealed partial class CupDatabase
         return items;
     }
 
+    public async Task<IReadOnlyDictionary<int, int>> PossibleNameCountsAsync(CancellationToken cancellationToken)
+    {
+        const string sql = """
+            SELECT e.TournamentId, COUNT(*)
+            FROM dbo.EntryCompetitors c
+            INNER JOIN dbo.Entries en ON en.Id = c.EntryId
+            INNER JOIN dbo.Events e ON e.Id = en.EventId
+            WHERE c.LinkStatus = N'Possible' AND e.CountedDivision = 1
+            GROUP BY e.TournamentId
+            """;
+        var counts = new Dictionary<int, int>();
+        await using var connection = await OpenAsync(cancellationToken);
+        await using var command = new SqlCommand(sql, connection);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            counts[reader.GetInt32(0)] = reader.GetInt32(1);
+        }
+
+        return counts;
+    }
+
     public async Task<TournamentListItem?> FindByTabroomIdAsync(int tabroomId, CancellationToken cancellationToken)
     {
         var matches = await ListTournamentsAsync(cancellationToken);
@@ -261,6 +283,45 @@ public sealed partial class CupDatabase
         return tournamentId;
     }
 
+    public async Task ReclassifyStoredDivisionsAsync(CancellationToken cancellationToken)
+    {
+        await using var connection = await OpenAsync(cancellationToken);
+        var rows = new List<(int Id, string Name, string Division, bool Counted)>();
+        await using (var command = new SqlCommand("SELECT Id, Name, Division, CountedDivision FROM dbo.Events", connection))
+        await using (var reader = await command.ExecuteReaderAsync(cancellationToken))
+        {
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                rows.Add((reader.GetInt32(0), reader.GetString(1), reader.GetString(2), reader.GetBoolean(3)));
+            }
+        }
+
+        foreach (var row in rows)
+        {
+            // An import-page Varsity choice is stored as Varsity and counted, even when the name looks like JV or novice.
+            if (row.Division == Division.Varsity.ToString() && row.Counted)
+            {
+                continue;
+            }
+
+            var division = EventClassifier.ClassifyDivision(row.Name);
+            var counted = division == Division.Varsity && row.Counted;
+            var label = division.ToString();
+            if (label == row.Division && counted == row.Counted)
+            {
+                continue;
+            }
+
+            await using var update = new SqlCommand(
+                "UPDATE dbo.Events SET Division = @Division, CountedDivision = @Counted WHERE Id = @Id",
+                connection);
+            update.Parameters.AddWithValue("@Division", label);
+            update.Parameters.AddWithValue("@Counted", counted);
+            update.Parameters.AddWithValue("@Id", row.Id);
+            await update.ExecuteNonQueryAsync(cancellationToken);
+        }
+    }
+
     public async Task<int> CreateManualAsync(string name, DateOnly start, string? state, string kind, CancellationToken cancellationToken)
     {
         var stateCode = string.IsNullOrWhiteSpace(state) ? null : state.Trim();
@@ -441,6 +502,25 @@ public sealed partial class CupDatabase
         await transaction.CommitAsync(cancellationToken);
     }
 
+    public async Task<bool> DeleteTournamentAsync(int tournamentId, CancellationToken cancellationToken)
+    {
+        await using var connection = await OpenAsync(cancellationToken);
+        await using var transaction = (SqlTransaction)await connection.BeginTransactionAsync(cancellationToken);
+        await using var exists = new SqlCommand("SELECT 1 FROM dbo.Tournaments WHERE Id = @Id", connection, transaction);
+        exists.Parameters.AddWithValue("@Id", tournamentId);
+        if (await exists.ExecuteScalarAsync(cancellationToken) is null)
+        {
+            return false;
+        }
+
+        await DeleteEventsAsync(connection, transaction, tournamentId, cancellationToken);
+        await using var delete = new SqlCommand("DELETE FROM dbo.Tournaments WHERE Id = @Id", connection, transaction);
+        delete.Parameters.AddWithValue("@Id", tournamentId);
+        var removed = await delete.ExecuteNonQueryAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return removed == 1;
+    }
+
     private static async Task<int> InsertTournamentAsync(SqlConnection connection, SqlTransaction transaction, TabroomTournamentInfo info, string skipped, CancellationToken cancellationToken)
     {
         await using var command = new SqlCommand("""
@@ -493,11 +573,11 @@ public sealed partial class CupDatabase
     {
         await using var command = new SqlCommand("""
             INSERT INTO dbo.Events
-                (TournamentId, TabroomEventId, TabroomResultSetId, Name, EventKind, CountedDivision, SchoolCount, EntryCount,
+                (TournamentId, TabroomEventId, TabroomResultSetId, Name, EventKind, CountedDivision, Division, SchoolCount, EntryCount,
                  BreaksToOctosOrDeeper, HasFinalSession, HasSemis, IsHouse, RawJson)
             OUTPUT INSERTED.Id
             VALUES
-                (@TournamentId, @EventId, @ResultId, @Name, @EventKind, @Counted, @Schools, @Entries,
+                (@TournamentId, @EventId, @ResultId, @Name, @EventKind, @Counted, @Division, @Schools, @Entries,
                  @Octos, @Finals, @Semis, @House, @RawJson)
             """, connection, transaction);
         command.Parameters.AddWithValue("@TournamentId", tournamentId);
@@ -506,6 +586,7 @@ public sealed partial class CupDatabase
         command.Parameters.AddWithValue("@Name", imported.Name);
         command.Parameters.AddWithValue("@EventKind", imported.EventKind);
         command.Parameters.AddWithValue("@Counted", imported.CountedDivision);
+        command.Parameters.AddWithValue("@Division", imported.Division);
         command.Parameters.AddWithValue("@Schools", imported.SchoolCount);
         command.Parameters.AddWithValue("@Entries", imported.EntryCount);
         command.Parameters.AddWithValue("@Octos", imported.BreaksToOctosOrDeeper);
@@ -555,15 +636,18 @@ public sealed partial class CupDatabase
             return id;
         }
 
+        var division = EventClassifier.ClassifyDivision(eventName);
         await using var insert = new SqlCommand("""
             INSERT INTO dbo.Events
-                (TournamentId, Name, EventKind, CountedDivision, SchoolCount, EntryCount, BreaksToOctosOrDeeper, HasFinalSession, HasSemis, IsHouse)
+                (TournamentId, Name, EventKind, CountedDivision, Division, SchoolCount, EntryCount, BreaksToOctosOrDeeper, HasFinalSession, HasSemis, IsHouse)
             OUTPUT INSERTED.Id
-            VALUES (@TournamentId, @Name, @EventKind, 1, 0, 0, 0, @Finals, 0, @House)
+            VALUES (@TournamentId, @Name, @EventKind, @Counted, @Division, 0, 0, 0, @Finals, 0, @House)
             """, connection, transaction);
         insert.Parameters.AddWithValue("@TournamentId", tournamentId);
         insert.Parameters.AddWithValue("@Name", eventName);
         insert.Parameters.AddWithValue("@EventKind", eventKind);
+        insert.Parameters.AddWithValue("@Counted", division == Division.Varsity);
+        insert.Parameters.AddWithValue("@Division", division.ToString());
         insert.Parameters.AddWithValue("@Finals", eventKind == EventKind.Congress.ToString());
         insert.Parameters.AddWithValue("@House", EventClassifier.IsHouse(eventName));
         return (int)(await insert.ExecuteScalarAsync(cancellationToken) ?? 0);

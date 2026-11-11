@@ -133,11 +133,14 @@ public static class StandingsCalculator
 
         orderedRows = ApplyIndividualTieBreak(orderedRows, headToHead);
 
-        var awardOrder = orderedRows.Where(row => row.TournamentCount >= TournamentsRequired).ToList();
-        for (var index = 0; index < awardOrder.Count; index++)
+        foreach (var eventRows in orderedRows.GroupBy(row => row.Event))
         {
-            var tiedWithPrevious = index > 0 && FullyTied(awardOrder[index - 1], awardOrder[index], headToHead);
-            awardOrder[index].AwardRank = tiedWithPrevious ? awardOrder[index - 1].AwardRank : index + 1;
+            var awardOrder = eventRows.Where(row => row.TournamentCount >= TournamentsRequired).ToList();
+            for (var index = 0; index < awardOrder.Count; index++)
+            {
+                var tiedWithPrevious = index > 0 && FullyTied(awardOrder[index - 1], awardOrder[index], headToHead);
+                awardOrder[index].AwardRank = tiedWithPrevious ? awardOrder[index - 1].AwardRank : index + 1;
+            }
         }
 
         return orderedRows.Select(row => row.ToStanding()).ToList();

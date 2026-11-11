@@ -1,5 +1,6 @@
 using MDTAPoints.Api.Data;
 using MDTAPoints.Api.Services;
+using MDTAPoints.Core;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
@@ -20,6 +21,26 @@ public class ReviewModel : PageModel
     private string? PlaceError { get; set; }
 
     public IEnumerable<SchoolStudent> StudentsAt(int schoolId) => Students[schoolId];
+
+    public static IReadOnlyList<ReviewDivision> GroupDivisions(IEnumerable<EventRow> events)
+    {
+        var ordered = TournamentResults.Order(events);
+        Division[] sequence = { Division.Varsity, Division.JuniorVarsity, Division.Novice };
+        return sequence
+            .Select(division => new ReviewDivision(DivisionLabel(division), ordered.Where(item => EventClassifier.ClassifyDivision(item.Name) == division).ToList()))
+            .Where(group => group.Events.Count > 0)
+            .ToList();
+    }
+
+    public static int NamesToFix(EventRow item) =>
+        item.Entries.SelectMany(entry => entry.Competitors).Count(competitor => competitor.LinkStatus == "Possible");
+
+    private static string DivisionLabel(Division division) => division switch
+    {
+        Division.JuniorVarsity => "JV",
+        Division.Novice => "Novice",
+        _ => "Varsity"
+    };
 
     public async Task<IActionResult> OnGetAsync(int id)
     {
@@ -76,6 +97,16 @@ public class ReviewModel : PageModel
         }
 
         return RedirectToPage("Index", new { message = "Tournament published." });
+    }
+
+    public async Task<IActionResult> OnPostDeleteAsync(int id)
+    {
+        if (!await _database.DeleteTournamentAsync(id, HttpContext.RequestAborted))
+        {
+            return NotFound();
+        }
+
+        return RedirectToPage("/Tournaments/Index", new { message = "Tournament deleted." });
     }
 
     public async Task<IActionResult> OnPostAddAsync(int id, string eventKind, string eventName, int place, string school, string competitors, int elimWins)
@@ -162,3 +193,5 @@ public class ReviewModel : PageModel
             .Select(id => id!.Value)
             .ToHashSet();
 }
+
+public sealed record ReviewDivision(string Label, IReadOnlyList<EventRow> Events);

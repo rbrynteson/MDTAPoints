@@ -3,6 +3,7 @@ using MDTAPoints.Api.Services;
 using MDTAPoints.Core;
 using MDTAPoints.Tabroom;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Http.Features;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -22,6 +23,11 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.SlidingExpiration = true;
     });
 builder.Services.AddAuthorization();
+builder.Services.Configure<FormOptions>(options =>
+{
+    // A review posts a field for every place, note, elim count, and competitor.
+    options.ValueCountLimit = 50000;
+});
 builder.Services.AddSingleton<SchemaMigrator>();
 builder.Services.AddScoped<CupDatabase>();
 builder.Services.AddHttpClient<TabroomClient>(client =>
@@ -40,6 +46,7 @@ using (var scope = app.Services.CreateScope())
     await migrator.ApplyAsync(CancellationToken.None);
     var database = scope.ServiceProvider.GetRequiredService<CupDatabase>();
     await database.SeedAdminAsync(app.Configuration, CancellationToken.None);
+    await database.ReclassifyStoredDivisionsAsync(CancellationToken.None);
 }
 
 if (!app.Environment.IsDevelopment())
@@ -87,7 +94,12 @@ adminApi.MapGet("/tournaments/{id:int}", async (int id, CupDatabase database, Ca
 });
 adminApi.MapPost("/imports/tabroom", async (TabroomImportRequest request, TabroomImportService imports, CancellationToken cancellationToken) =>
 {
-    var outcome = await imports.ImportAsync(request.TournamentId, cancellationToken);
+    if (request.EventIds is { Count: 0 })
+    {
+        return Results.BadRequest(new { error = "Choose at least one event." });
+    }
+
+    var outcome = await imports.ImportAsync(request.TournamentId, request.EventIds, cancellationToken);
     return Results.Ok(outcome);
 });
 adminApi.MapPost("/imports/{id:int}/publish", async (int id, CupDatabase database, CancellationToken cancellationToken) =>
@@ -127,7 +139,7 @@ adminApi.MapPatch("/students/{id:int}", async (int id, PatchStudentRequest reque
 app.MapRazorPages();
 app.Run();
 
-public sealed record TabroomImportRequest(int TournamentId);
+public sealed record TabroomImportRequest(int TournamentId, IReadOnlyList<int>? EventIds = null);
 public sealed record CreateTournamentRequest(string Name, DateOnly StartDate, string? State, string Kind);
 public sealed record CreateEntryRequest(string EventKind, string EventName, int Place, string School, string Competitors, bool Prelim, int ElimWins, bool ReachedFinals, bool ReachedSemis, bool QualifiedToState);
 public sealed record PatchTournamentRequest(string? Kind);

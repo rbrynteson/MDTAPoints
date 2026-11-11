@@ -2,15 +2,75 @@
 @model MDTAPoints.Api.Pages.Admin.Tournaments.ImportModel
 @{
     ViewData["Title"] = "Import";
+    var tournament = Model.Preview?.Tournament;
+    var published = Model.Preview?.Existing is { Status: "Published" } existing ? existing : null;
 }
 
 <h1>Import from Tabroom</h1>
-<p class="muted">Use the tournament id from a results URL, such as 41328 for the Eden Prairie Eagle Invitational.</p>
 @if (!string.IsNullOrEmpty(Model.Error))
 {
     <p class="error">@Model.Error</p>
 }
-<form method="post" class="stack">
-    <label>Tabroom tournament id <input asp-for="TournamentId" type="number" min="1" required /></label>
-    <button type="submit">Import</button>
-</form>
+@if (published is not null)
+{
+    <p>That tournament is already published.</p>
+    <p><a class="button" asp-page="Review" asp-route-id="@published.Id">Open @published.Name</a></p>
+}
+@if (tournament is null)
+{
+    <p class="muted">Enter the tournament id, such as 40756 for the Minnetonka Skipper Spooktacular or 41328 for the Eden Prairie Eagle Invitational. On the classic site that id is the tourn_id. The last number in a beta results link, such as 468748 in /invite/minnetonka2/results/468748, is one event's result set, not the tournament.</p>
+    <form method="post" asp-page-handler="Find" class="stack">
+        <label>Tabroom tournament id <input asp-for="TournamentId" type="number" min="1" required /></label>
+        <button type="submit">Show events</button>
+    </form>
+}
+else
+{
+    <h2>@tournament.Name</h2>
+    <p class="muted">@tournament.StartDate.ToString("MMMM d, yyyy") · tournament @tournament.Id</p>
+    @if (Model.Preview?.Existing is { Status: "Preview" })
+    {
+        <p class="muted">This tournament is already a preview. Importing again replaces those events.</p>
+    }
+    <p class="muted">Checked events are imported. Varsity events count toward the Cup. The choice starts from the event name. Change it when that guess is wrong, such as a congress house that is not the varsity division. Novice and JV events stay out of the standings unless you mark them Varsity.</p>
+    <form method="post" asp-page-handler="Import">
+        <input type="hidden" asp-for="TournamentId" />
+        <table>
+            <thead>
+                <tr><th>Import</th><th>Event</th><th>Type</th><th>Varsity</th></tr>
+            </thead>
+            <tbody>
+            @foreach (var item in Model.Events)
+            {
+                <tr>
+                    <td>
+                        @if (item.Selectable)
+                        {
+                            <input type="checkbox" name="EventIds" value="@item.EventId" @(Model.IsChecked(item) ? "checked" : null) aria-label="Import @item.Name" />
+                        }
+                    </td>
+                    <td>@item.Name</td>
+                    <td>@item.Type</td>
+                    <td>
+                        @if (item.Selectable)
+                        {
+                            <select name="Varsity[@item.EventId]" aria-label="Varsity for @item.Name">
+                                <option value="true" selected="@Model.IsVarsity(item)">Varsity</option>
+                                <option value="false" selected="@(!Model.IsVarsity(item))">Not varsity</option>
+                            </select>
+                        }
+                        else
+                        {
+                            <span class="muted">@item.Cup</span>
+                        }
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+        <p>
+            <button type="submit">Import selected events</button>
+            <a class="button" asp-page="/Admin/Tournaments/Import">Different tournament</a>
+        </p>
+    </form>
+}

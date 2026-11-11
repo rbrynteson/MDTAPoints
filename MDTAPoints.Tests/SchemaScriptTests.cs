@@ -12,9 +12,11 @@ public class SchemaScriptTests
             .Where(resource => resource.EndsWith(".sql", StringComparison.OrdinalIgnoreCase))
             .OrderBy(resource => resource, StringComparer.Ordinal)
             .ToArray();
-        Assert.Equal(2, names.Length);
+        Assert.Equal(4, names.Length);
         Assert.Equal("001_create", names[0].Split('.')[^2]);
         Assert.Equal("002_entry_place", names[1].Split('.')[^2]);
+        Assert.Equal("003_school_exclude", names[2].Split('.')[^2]);
+        Assert.Equal("004_event_division", names[3].Split('.')[^2]);
 
         using var stream = assembly.GetManifestResourceStream(names[0]);
         Assert.NotNull(stream);
@@ -31,5 +33,11 @@ public class SchemaScriptTests
         var placeSql = placeReader.ReadToEnd();
         Assert.Contains("TabroomPlace", placeSql, StringComparison.Ordinal);
         Assert.Contains("PlaceNote", placeSql, StringComparison.Ordinal);
+
+        using var divisionStream = assembly.GetManifestResourceStream(names[3]);
+        Assert.NotNull(divisionStream);
+        using var divisionReader = new StreamReader(divisionStream);
+        var divisionSql = divisionReader.ReadToEnd();
+        Assert.Contains("Division", divisionSql, StringComparison.Ordinal);
     }
 }

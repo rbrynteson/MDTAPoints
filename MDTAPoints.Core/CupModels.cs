@@ -9,6 +9,13 @@ public enum EventKind
     Congress
 }
 
+public enum Division
+{
+    Varsity,
+    JuniorVarsity,
+    Novice
+}
+
 public enum TournamentKind
 {
     Invitational,
@@ -53,6 +60,16 @@ public static class EventKindLabels
         EventKind.Policy => "Policy",
         EventKind.Congress => "Congressional Debate",
         _ => kind.ToString()
+    };
+
+    public static string Short(EventKind kind) => kind switch
+    {
+        EventKind.LincolnDouglas => "LD",
+        EventKind.Classic => "Classic",
+        EventKind.PublicForum => "PF",
+        EventKind.Policy => "Policy",
+        EventKind.Congress => "Congress",
+        _ => Display(kind)
     };
 
     public static bool IsTeamEvent(EventKind kind) =>
